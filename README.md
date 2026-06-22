@@ -33,6 +33,19 @@ py run_pipeline.py --config configs/pilot_city.yaml --data-mode gee
 # Dashboard
 streamlit run dashboard/app.py
 
+# Full-stack dashboard (recommended for demo)
+# Terminal 1 — API (only one instance; if port 8000 is busy, see note below)
+uvicorn backend.app.main:app --reload --port 8000
+# Terminal 2 — Next.js UI
+cd frontend && npm run dev
+# Open http://localhost:3000
+
+# Port 8000 already in use? Either use the running API, or stop it then restart:
+#   netstat -ano | findstr :8000
+#   taskkill /PID <pid> /F
+# Or use another port: uvicorn backend.app.main:app --reload --port 8001
+#   then set frontend/.env.local → NEXT_PUBLIC_API_URL=http://localhost:8001
+
 # Tests
 pytest tests/ -q
 ```
@@ -64,6 +77,7 @@ Copy `configs/pilot_city.yaml`, set `bbox`, `city_name`, and `output_dir`.
 
 ## References
 
+- [UHI-Analysis](https://github.com/ArhamOrioner/UHI-Analysis) — GEE + ML hotspot pipeline (Getis-Ord Gi*, SHAP)
 - [WRI UrbanHeatMitigation](https://github.com/wri/UrbanHeatMitigation)
 - [GEE UHI ML](https://github.com/KonlavachMengsuwan/-Urban-Heat-Island-Mapping-with-Machine-Learning-using-Google-Earth-Engine)
 - [InVEST UCM calibration](https://github.com/martibosch/invest-ucm-calibration)

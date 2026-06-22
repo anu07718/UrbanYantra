@@ -55,7 +55,11 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
     lst_path = out_dir / "rasters" / "lst_10m.tif"
 
     if table_path.exists() and lst_path.exists():
-        return pd.read_parquet(table_path), lst_path
+        cached = pd.read_parquet(table_path)
+        missing = [c for c in FEATURE_COLUMNS if c not in cached.columns]
+        if not missing:
+            return cached, lst_path
+        logger.info("Rebuilding feature table — cached parquet missing: %s", missing)
 
     ndvi = _read_raster(raster_dir / "ndvi.tif")
     ndbi = _read_raster(raster_dir / "ndbi.tif")

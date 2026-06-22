@@ -1,0 +1,497 @@
+"""Load precomputed pipeline outputs for API serving."""
+
+from __future__ import annotations
+
+import json
+import math
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from simulation.fit_surrogate import predict_surrogate
+from utils import list_city_keys, load_city_config
+
+ROOT = Path(__file__).resolve().parents[3]
+CITIES_YAML = ROOT / "configs" / "cities.yaml"
+
+WARD_NAMES = {
+    "Bengaluru": [
+        "Downtown",
+        "Shivajinagar",
+        "Richmond Town",
+        "Shanti Nagar",
+        "Indiranagar",
+        "Koramangala",
+        "Jayanagar",
+        "Malleshwaram",
+        "Whitefield",
+        "Electronic City",
+        "Hebbal",
+        "Yelahanka",
+        "Banashankari",
+        "BTM Layout",
+        "MG Road",
+        "Cubbon Park",
+        "Ulsoor",
+        "Frazer Town",
+        "Basavanagudi",
+        "Rajajinagar",
+    ],
+    "Mumbai": [
+        "Colaba",
+        "Fort",
+        "Dadar",
+        "Bandra",
+        "Andheri",
+        "Powai",
+        "Goregaon",
+        "Borivali",
+        "Thane",
+        "Navi Mumbai",
+        "Worli",
+        "Lower Parel",
+        "Kurla",
+        "Chembur",
+        "Mulund",
+        "Malad",
+        "Juhu",
+        "Santacruz",
+        "Vile Parle",
+        "Dharavi",
+    ],
+    "Pune": [
+        "Camp",
+        "Koregaon Park",
+        "Deccan",
+        "Kothrud",
+        "Baner",
+        "Hinjewadi",
+        "Hadapsar",
+        "Kharadi",
+        "Wakad",
+        "Aundh",
+        "Shivajinagar",
+        "Pimpri",
+        "Katraj",
+        "Warje",
+        "Kondhwa",
+        "Magarpatta",
+        "Viman Nagar",
+        "Yerwada",
+        "Bund Garden",
+        "Swargate",
+    ],
+    "Delhi NCR": [
+        "Connaught Place",
+        "Karol Bagh",
+        "Dwarka",
+        "Rohini",
+        "Saket",
+        "Noida",
+        "Gurgaon",
+        "Faridabad",
+        "Lajpat Nagar",
+        "Hauz Khas",
+        "Janakpuri",
+        "Pitampura",
+        "Mayur Vihar",
+        "Anand Vihar",
+        "Rajouri Garden",
+        "Vasant Kunj",
+        "Greater Kailash",
+        "Civil Lines",
+        "Nehru Place",
+        "Okhla",
+    ],
+    "Ahmedabad": [
+        "Navrangpura",
+        "Satellite",
+        "Maninagar",
+        "Vastrapur",
+        "Bopal",
+        "Ghatlodia",
+        "Paldi",
+        "Ashram Road",
+        "SG Highway",
+        "Thaltej",
+        "Naranpura",
+        "Vejalpur",
+        "Isanpur",
+        "Naroda",
+        "Sabarmati",
+        "Ellis Bridge",
+        "Law Garden",
+        "Memnagar",
+        "Chandkheda",
+        "Motera",
+    ],
+}
+
+VULNERABILITY = ["LOW", "MODERATE", "HIGH", "CRITICAL"]
+
+
+def _city_out_dir(city_key: str) -> Path:
+    cfg = load_city_config(CITIES_YAML, city_key)
+    return ROOT / cfg["output_dir"]
+
+
+def _load_feature_table(city_key: str) -> pd.DataFrame:
+    path = _city_out_dir(city_key) / "tables" / "feature_table.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"No pipeline output for {city_key}. Run: py run_pipeline.py --city {city_key}")
+    return pd.read_parquet(path)
+
+
+def _approx_utci(lst_c: float, humidity: float = 0.55) -> float:
+    """Simplified UTCI proxy from LST and humidity (demo metric)."""
+    return float(lst_c * 0.72 + humidity * 8.0 - 2.5)
+
+
+def _resilience_index(df: pd.DataFrame) -> int:
+    ndvi = df["ndvi"].mean()
+    lst = df["lst_c"].mean()
+    green = min(100, max(0, int(ndvi * 120)))
+    heat_penalty = min(40, max(0, int((lst - 35) * 4)))
+    return max(0, min(100, green + 30 - heat_penalty))
+
+
+@lru_cache(maxsize=16)
+def get_city_summary(city_key: str) -> dict[str, Any]:
+    cfg = load_city_config(CITIES_YAML, city_key)
+    df = _load_feature_table(city_key)
+    avg_lst = float(df["lst_c"].mean())
+    humidity = float(df.get("humidity_proxy", pd.Series([0.55])).mean())
+    avg_utci = _approx_utci(avg_lst, humidity)
+    return {
+        "city_key": city_key,
+        "city_name": cfg["city_name"],
+        "bbox": cfg["bbox"],
+        "data_mode": cfg.get("data_mode", "synthetic"),
+        "metrics": {
+            "avg_city_lst_c": round(avg_lst, 1),
+            "avg_heat_stress_utci_c": round(avg_utci, 1),
+            "resilience_index": _resilience_index(df),
+            "co2_sequestration_tons_yr": 0.0,
+            "total_investment_m_usd": 0.0,
+        },
+    }
+
+
+def list_cities() -> list[dict[str, Any]]:
+    keys = list_city_keys(CITIES_YAML)
+    results = []
+    for key in keys:
+        out = _city_out_dir(key)
+        if (out / "tables" / "feature_table.parquet").exists():
+            summary = get_city_summary(key)
+            results.append(
+                {
+                    "city_key": key,
+                    "city_name": summary["city_name"],
+                    "has_data": True,
+                    "avg_lst_c": summary["metrics"]["avg_city_lst_c"],
+                }
+            )
+        else:
+            cfg = load_city_config(CITIES_YAML, key)
+            results.append(
+                {
+                    "city_key": key,
+                    "city_name": cfg["city_name"],
+                    "has_data": False,
+                    "avg_lst_c": None,
+                }
+            )
+    return results
+
+
+def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str, Any]:
+    cfg = load_city_config(CITIES_YAML, city_key)
+    df = _load_feature_table(city_key)
+    bbox = cfg["bbox"]
+    min_lon, min_lat, max_lon, max_lat = bbox
+    names = WARD_NAMES.get(cfg["city_name"], [f"Ward {i + 1}" for i in range(rows * cols)])
+
+    lon_edges = np.linspace(min_lon, max_lon, cols + 1)
+    lat_edges = np.linspace(min_lat, max_lat, rows + 1)
+    features = []
+    idx = 0
+
+    for r in range(rows):
+        for c in range(cols):
+            w_min_lon, w_max_lon = lon_edges[c], lon_edges[c + 1]
+            w_min_lat, w_max_lat = lat_edges[r], lat_edges[r + 1]
+            ward_df = df[
+                (df["lon"] >= w_min_lon)
+                & (df["lon"] < w_max_lon if c < cols - 1 else df["lon"] <= w_max_lon)
+                & (df["lat"] >= w_min_lat)
+                & (df["lat"] < w_max_lat if r < rows - 1 else df["lat"] <= w_max_lat)
+            ]
+            if ward_df.empty:
+                continue
+
+            avg_lst = float(ward_df["lst_c"].mean())
+            avg_ndvi = float(ward_df["ndvi"].mean())
+            avg_ndbi = float(ward_df["ndbi"].mean())
+            hotspot_frac = float((ward_df["hotspot_class"] >= 1).mean())
+            humidity = float(ward_df.get("humidity_proxy", pd.Series([0.55])).mean())
+            utci = _approx_utci(avg_lst, humidity)
+
+            if avg_lst >= 42 or hotspot_frac > 0.35:
+                vuln = "CRITICAL"
+            elif avg_lst >= 40 or hotspot_frac > 0.2:
+                vuln = "HIGH"
+            elif avg_lst >= 38:
+                vuln = "MODERATE"
+            else:
+                vuln = "LOW"
+
+            name = names[idx % len(names)]
+            idx += 1
+            ward_id = f"{city_key}_{name.lower().replace(' ', '_')}"
+
+            polygon = [
+                [w_min_lon, w_min_lat],
+                [w_max_lon, w_min_lat],
+                [w_max_lon, w_max_lat],
+                [w_min_lon, w_max_lat],
+                [w_min_lon, w_min_lat],
+            ]
+
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": [polygon]},
+                    "properties": {
+                        "ward_id": ward_id,
+                        "name": name,
+                        "avg_lst_c": round(avg_lst, 2),
+                        "simulated_lst_c": round(avg_lst, 2),
+                        "heat_stress_utci_c": round(utci, 2),
+                        "cooling_delta_c": 0.0,
+                        "ndvi": round(avg_ndvi, 3),
+                        "ndbi": round(avg_ndbi, 3),
+                        "vulnerability_class": vuln,
+                        "hotspot_fraction": round(hotspot_frac, 3),
+                    },
+                }
+            )
+
+    return {"type": "FeatureCollection", "features": features}
+
+
+def get_hotspots(city_key: str) -> dict[str, Any]:
+    cfg = load_city_config(CITIES_YAML, city_key)
+    slug = cfg["city_name"].lower().replace(" ", "_")
+    path = _city_out_dir(city_key) / "geojson" / f"hotspots_{slug}.geojson"
+    if path.exists():
+        raw = path.read_text(encoding="utf-8").replace("NaN", "null")
+        return json.loads(raw)
+    df = _load_feature_table(city_key)
+    severe = df.nlargest(50, "lst_c")
+    features = []
+    for _, row in severe.iterrows():
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [float(row["lon"]), float(row["lat"])]},
+                "properties": {
+                    "hotspot_id": f"{cfg['city_name']}_{int(row['row'])}_{int(row['col'])}",
+                    "lst_c": float(row["lst_c"]),
+                    "hotspot_class": int(row["hotspot_class"]),
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def get_drivers(city_key: str) -> dict[str, Any]:
+    out = _city_out_dir(city_key)
+    shap_path = out / "explainability" / "shap_feature_importance.csv"
+    if shap_path.exists():
+        imp = pd.read_csv(shap_path)
+        imp = imp[imp["mean_abs_shap"] > 0].copy()
+        total = imp["mean_abs_shap"].sum() or 1.0
+        imp["pct"] = (imp["mean_abs_shap"] / total * 100).clip(0, 100)
+        top = imp.sort_values("mean_abs_shap", ascending=False).head(4)
+        drivers = [
+            {"feature": _friendly_driver_name(row["feature"]), "importance_pct": float(row["pct"])}
+            for _, row in top.iterrows()
+        ]
+        total_pct = sum(d["importance_pct"] for d in drivers) or 1.0
+        drivers = [{**d, "importance_pct": round(d["importance_pct"] / total_pct * 100, 1)} for d in drivers]
+        return {"source": "shap", "drivers": drivers}
+
+    df = _load_feature_table(city_key)
+    ndvi_deficit = max(0.0, 0.35 - float(df["ndvi"].mean()))
+    low_albedo = max(0.0, float(df["ndbi"].mean()))
+    morphology = max(0.0, float(df["impervious_frac"].mean()))
+    meteo = max(0.0, float(df.get("humidity_proxy", pd.Series([0.5])).mean()))
+    raw = {
+        "Vegetation Deficit (NDVI)": ndvi_deficit * 80,
+        "Low Surface Albedo": low_albedo * 40,
+        "Morphology Trapping (SVF)": morphology * 45,
+        "Meteorological (Humidity/Solar)": meteo * 35,
+    }
+    total = sum(raw.values()) or 1.0
+    return {
+        "source": "proxy",
+        "drivers": [
+            {"feature": k, "importance_pct": round(max(0.0, v / total * 100), 1)} for k, v in raw.items()
+        ],
+    }
+
+
+def _friendly_driver_name(feature: str) -> str:
+    mapping = {
+        "ndvi": "Vegetation Deficit (NDVI)",
+        "ndbi": "Low Surface Albedo",
+        "impervious_frac": "Morphology Trapping (SVF)",
+        "building_density": "Building Density",
+        "humidity_proxy": "Meteorological (Humidity)",
+        "wind_ms": "Wind Patterns",
+        "solar_radiation_wm2": "Solar Radiation",
+    }
+    return mapping.get(feature, feature.replace("_", " ").title())
+
+
+def get_cooling_potential(city_key: str) -> list[dict[str, Any]]:
+    out = _city_out_dir(city_key)
+    rankings = out / "tables" / "intervention_rankings.csv"
+    if rankings.exists():
+        df = pd.read_csv(rankings)
+        grouped = (
+            df.groupby("intervention_type")["estimated_temp_reduction_c"]
+            .mean()
+            .reset_index()
+            .sort_values("estimated_temp_reduction_c", ascending=False)
+        )
+        labels = {
+            "cool_roof": "Cool Roofs",
+            "urban_greening": "Urban Greening",
+            "blue_infrastructure": "Blue Infra",
+        }
+        return [
+            {
+                "strategy": labels.get(row["intervention_type"], row["intervention_type"]),
+                "delta_t_c": round(float(row["estimated_temp_reduction_c"]), 2),
+            }
+            for _, row in grouped.iterrows()
+        ]
+    return [
+        {"strategy": "Cool Roofs", "delta_t_c": 1.2},
+        {"strategy": "Urban Greening", "delta_t_c": 1.8},
+        {"strategy": "Blue Infra", "delta_t_c": 1.5},
+    ]
+
+
+def get_ranking(city_key: str, limit: int = 30) -> list[dict[str, Any]]:
+    out = _city_out_dir(city_key)
+    json_path = out / "ranking" / f"{load_city_config(CITIES_YAML, city_key)['city_name'].lower().replace(' ', '_')}.json"
+    if json_path.exists():
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+        return data[:limit]
+    csv_path = out / "tables" / "intervention_rankings.csv"
+    if csv_path.exists():
+        return pd.read_csv(csv_path).head(limit).to_dict(orient="records")
+    return []
+
+
+def get_climate_projection(city_key: str) -> list[dict[str, Any]]:
+    df = _load_feature_table(city_key)
+    base = float(df["lst_c"].mean())
+    years = list(range(2020, 2051, 5))
+    return [
+        {"year": y, "lst_c": round(base + (y - 2020) * 0.12 + math.sin(y / 8) * 0.3, 2)}
+        for y in years
+    ]
+
+
+def run_scenario(
+    city_key: str,
+    cool_roofs_pct: float,
+    green_roofs_pct: float,
+    urban_greening_pct: float,
+    blue_infra_pct: float,
+    budget_m_usd: float = 5.0,
+) -> dict[str, Any]:
+    out = _city_out_dir(city_key)
+    surrogate = out / "simulation" / "surrogate_delta_t.joblib"
+    canopy = (urban_greening_pct + green_roofs_pct * 0.5) / 100.0
+    albedo = cool_roofs_pct / 100.0 * 0.35
+    water = blue_infra_pct / 100.0 * 0.5
+
+    if surrogate.exists():
+        delta_t = predict_surrogate(canopy, albedo, water, surrogate)
+    else:
+        delta_t = -(canopy * 1.6 + albedo * 2.1 + water * 3.0)
+
+    cooling_c = abs(delta_t)
+    investment = min(budget_m_usd, cooling_c * 0.8)
+
+    df = _load_feature_table(city_key)
+    avg_lst = float(df["lst_c"].mean())
+    humidity = float(df.get("humidity_proxy", pd.Series([0.55])).mean())
+
+    return {
+        "city_key": city_key,
+        "inputs": {
+            "cool_roofs_pct": cool_roofs_pct,
+            "green_roofs_pct": green_roofs_pct,
+            "urban_greening_pct": urban_greening_pct,
+            "blue_infra_pct": blue_infra_pct,
+            "budget_m_usd": budget_m_usd,
+        },
+        "mean_cooling_delta_c": round(cooling_c, 2),
+        "simulated_avg_lst_c": round(avg_lst - cooling_c, 2),
+        "baseline_avg_lst_c": round(avg_lst, 2),
+        "simulated_utci_c": round(_approx_utci(avg_lst - cooling_c, humidity), 2),
+        "co2_sequestration_tons_yr": round(urban_greening_pct * 12.5, 1),
+        "total_investment_m_usd": round(investment, 2),
+        "ward_updates": _apply_scenario_to_wards(city_key, cooling_c),
+    }
+
+
+def _apply_scenario_to_wards(city_key: str, cooling_c: float) -> list[dict[str, Any]]:
+    wards = build_ward_geojson(city_key, rows=5, cols=4)["features"]
+    updates = []
+    for f in wards:
+        p = f["properties"]
+        updates.append(
+            {
+                "ward_id": p["ward_id"],
+                "simulated_lst_c": round(p["avg_lst_c"] - cooling_c * (0.7 + 0.3 * np.random.default_rng(hash(p["ward_id"]) % 2**32).random()), 2),
+                "cooling_delta_c": round(cooling_c, 2),
+            }
+        )
+    return updates
+
+
+def chat_response(message: str, city_key: str) -> str:
+    summary = get_city_summary(city_key)
+    drivers = get_drivers(city_key)
+    top_driver = drivers["drivers"][0]["feature"] if drivers["drivers"] else "vegetation deficit"
+    msg = message.lower()
+    if "lst" in msg or "temperature" in msg:
+        return (
+            f"Average LST in {summary['city_name']} is {summary['metrics']['avg_city_lst_c']}°C. "
+            f"Primary driver: {top_driver}. Use the Cooling Simulator to estimate intervention impact."
+        )
+    if "roi" in msg or "invest" in msg or "cost" in msg:
+        return (
+            "Ranked interventions are in the right panel. Cool roofs offer lower complexity; "
+            "urban greening yields higher ΔT but higher cost per sqm (placeholder municipal costs)."
+        )
+    if "hi" in msg or "hello" in msg:
+        return (
+            f"Hello! I'm the UrbanCool RAG analytics agent for {summary['city_name']}. "
+            "Ask about LST hotspots, SHAP drivers, ROI, or intervention scenarios."
+        )
+    return (
+        f"For {summary['city_name']}: resilience index {summary['metrics']['resilience_index']}/100, "
+        f"UTCI proxy {summary['metrics']['avg_heat_stress_utci_c']}°C. "
+        "Adjust sliders and run the physics-informed solver for scenario ΔT."
+    )

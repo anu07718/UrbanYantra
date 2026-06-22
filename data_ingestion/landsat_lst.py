@@ -68,16 +68,20 @@ def fetch_landsat_lst_gee(config: dict, out_dir: Path) -> Path:
 
 
 def generate_synthetic_lst(config: dict, shape: tuple[int, int] = (120, 120)) -> np.ndarray:
-    """Synthetic LST field with urban heat island pattern for demo fallback."""
-    rng = np.random.default_rng(42)
+    """Synthetic LST with per-city UHI core (demo until GEE Landsat is enabled)."""
+    city = str(config.get("city_name", "city"))
+    seed = abs(hash(city)) % (2**32)
+    rng = np.random.default_rng(seed)
     h, w = shape
-    y, x = np.mgrid[0:h, 0:w]
-    cx, cy = w * 0.55, h * 0.45
+    y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+    # City-specific heat centre
+    cx = w * (0.45 + (seed % 20) / 100)
+    cy = h * (0.40 + (seed % 17) / 100)
     dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-    urban_core = 38 + 4 * np.exp(-dist / 25)
-    rural = 32 + 0.02 * x
-    lst = urban_core * 0.7 + rural * 0.3 + rng.normal(0, 0.5, (h, w))
-    return lst.astype(np.float32)
+    urban_core = 40 + 8 * np.exp(-dist / (18 + (seed % 10)))
+    rural = 31 + 0.015 * x + 0.01 * (h - y)
+    lst = urban_core * 0.75 + rural * 0.25 + rng.normal(0, 0.35, (h, w))
+    return np.clip(lst, 28, 48).astype(np.float32)
 
 
 def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:

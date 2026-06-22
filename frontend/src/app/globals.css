@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f1419;
+  --foreground: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Leaflet dark tweaks */
+.leaflet-container {
+  background: #1a2030;
+  font-family: inherit;
+}
+
+.leaflet-control-attribution {
+  background: rgba(15, 20, 25, 0.85) !important;
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #22d3ee !important;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #22d3ee;
+  cursor: pointer;
+}

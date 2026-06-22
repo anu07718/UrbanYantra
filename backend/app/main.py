@@ -78,6 +78,8 @@ def city_wards(city_key: str, step: int | None = Query(4, ge=1, le=20)):
         return heatmap.build_fine_grid_geojson(city_key, step=step)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/heatmap/{layer}.png")
@@ -97,6 +99,8 @@ def heatmap_meta(city_key: str, layer: str):
         return heatmap.get_heatmap_meta(city_key, layer)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/sample-points")
@@ -105,6 +109,8 @@ def sample_points(city_key: str, stride: int = Query(2, ge=1, le=12)):
         return heatmap.build_sample_points_geojson(city_key, stride=stride)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/hotspots")
@@ -113,6 +119,8 @@ def city_hotspots(city_key: str):
         return city_data.get_hotspots(city_key)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/drivers")
@@ -121,6 +129,8 @@ def city_drivers(city_key: str):
         return city_data.get_drivers(city_key)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/cooling-potential")
@@ -129,6 +139,8 @@ def cooling_potential(city_key: str):
         return city_data.get_cooling_potential(city_key)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/cities/{city_key}/climate")
@@ -137,6 +149,8 @@ def climate_projection(city_key: str):
         return city_data.get_climate_projection(city_key)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.get("/ranking/{city_key}")
@@ -145,6 +159,8 @@ def ranking(city_key: str, limit: int = 30):
         return city_data.get_ranking(city_key, limit=limit)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.post("/scenario")
@@ -160,6 +176,8 @@ def scenario(body: ScenarioRequest):
         )
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
 
 
 @app.post("/chat")
@@ -169,3 +187,5 @@ def chat(body: ChatRequest):
         return {"reply": reply}
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e

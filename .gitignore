@@ -59,4 +59,15 @@ Thumbs.db
 # ==========================
 # Project outputs
 # ==========================
-outputs/
+outputs/*
+
+# BUT track Python source files
+!outputs/__init__.py
+!outputs/export_maps.py
+!outputs/.gitkeep
+
+# Also ignore large data everywhere else
+*.tif
+*.joblib
+cache/
+*.geojson

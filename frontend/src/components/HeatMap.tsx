@@ -101,7 +101,7 @@ export default function HeatMap({
     [bbox[3], bbox[2]],
   ]) as LatLngBoundsExpression;
 
-  const overlayUrl = `${apiBase()}/cities/${cityKey}/heatmap/${layer}.png?t=${heatmapMeta?.vmax ?? 0}`;
+  const overlayUrl = `${apiBase}/cities/${cityKey}/heatmap/${layer}.png?t=${heatmapMeta?.vmax ?? 0}`;
 
   const domainStyle = (feature?: Feature<Geometry, GeoJsonProperties>): PathOptions => {
     const props = feature?.properties as WardProperties | undefined;

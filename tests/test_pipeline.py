@@ -35,3 +35,21 @@ def test_invest_ucm_cooling_sign():
     imp = np.ones((5, 5))
     delta = invest_ucm_delta_t(lst, ndvi, imp, "urban_greening", {"canopy_increase_pct": 25, "shade_factor": 0.15})
     assert np.all(delta < 0)
+
+
+def test_getis_ord_hotspot_shape():
+    from features.hotspot_detection import getis_ord_gi_star
+
+    grid = np.random.rand(20, 20).astype(np.float32) * 5 + 32
+    z, p = getis_ord_gi_star(grid, kernel_size=5)
+    assert z.shape == grid.shape
+    assert p.shape == grid.shape
+
+
+def test_lcz_proxy_range():
+    from features.lcz_proxy import derive_lcz_proxy
+
+    h = np.array([[0, 25], [50, 10]], dtype=np.float32)
+    imp = np.array([[0.1, 0.9], [0.8, 0.3]], dtype=np.float32)
+    lcz = derive_lcz_proxy(h, imp)
+    assert lcz.min() >= 1 and lcz.max() <= 10

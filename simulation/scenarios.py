@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pandas as pd
 import rasterio
 
 from data_ingestion.cache import save_geotiff
+from simulation.fit_surrogate import fit_surrogate_model
 from simulation.invest_ucm import apply_scenario, invest_ucm_delta_t
 
 logger = logging.getLogger(__name__)
@@ -75,6 +77,7 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
 
         benefit = -delta  # positive = cooling
         complexity, desc = SCENARIO_COMPLEXITY.get(scenario_name, ("medium", ""))
+        cost_per_sqm = config.get("intervention_costs_inr_per_sqm", {}).get(scenario_name, 1000)
         # Rank top zones by benefit per unit area (pixel)
         flat_idx = np.argsort(benefit.ravel())[::-1][:50]
         for rank, idx in enumerate(flat_idx[:20], start=1):
@@ -89,6 +92,8 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
                     "lon": config["bbox"][0] + (c + 0.5) * (config["bbox"][2] - config["bbox"][0]) / w,
                     "lat": config["bbox"][3] - (r + 0.5) * (config["bbox"][3] - config["bbox"][1]) / h,
                     "estimated_temp_reduction_c": float(benefit[r, c]),
+                    "cost_effectiveness_score": float(benefit[r, c]) / max(cost_per_sqm, 1),
+                    "cost_inr_per_sqm": cost_per_sqm,
                     "baseline_lst_c": float(lst[r, c]),
                     "post_lst_c": float(lst_new[r, c]),
                     "confidence": "medium" if config.get("data_mode") == "gee" else "demo-synthetic",
@@ -101,5 +106,14 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
     rec_df["rank"] = np.arange(1, len(rec_df) + 1)
     rec_path = out_dir / "tables" / "intervention_rankings.csv"
     rec_df.to_csv(rec_path, index=False)
+
+    ranking_json = rec_df.head(50).to_dict(orient="records")
+    ranking_dir = out_dir / "ranking"
+    ranking_dir.mkdir(parents=True, exist_ok=True)
+    city_slug = config.get("city_name", "city").lower().replace(" ", "_")
+    json_path = ranking_dir / f"{city_slug}.json"
+    json_path.write_text(json.dumps(ranking_json, indent=2), encoding="utf-8")
+
+    fit_surrogate_model(config, out_dir)
     logger.info("Scenario simulation complete. Rankings: %s", rec_path)
     return rec_df

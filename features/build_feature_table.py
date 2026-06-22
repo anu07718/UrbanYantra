@@ -10,6 +10,8 @@ import pandas as pd
 import rasterio
 
 from data_ingestion.cache import save_geotiff, save_parquet
+from features.hotspot_detection import classify_hotspots_from_gi, getis_ord_gi_star
+from features.lcz_proxy import derive_lcz_proxy
 from features.morphology import compute_morphology_rasters
 from features.temporal import summarize_meteo_for_pixels
 
@@ -37,6 +39,7 @@ FEATURE_COLUMNS = [
     "month",
     "season",
     "heatwave_flag",
+    "lcz_class",
 ]
 
 
@@ -119,13 +122,25 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
             rows.append(row)
 
     df = pd.DataFrame(rows)
-    median_lst = df["lst_c"].median()
-    hs = config.get("hotspot", {})
-    df["hotspot_class"] = np.where(
-        df["lst_c"] >= median_lst + hs.get("severe_delta_c", 4),
-        2,
-        np.where(df["lst_c"] >= median_lst + hs.get("moderate_delta_c", 2), 1, 0),
+    df["city"] = config.get("city_name", "city")
+    lcz_grid = derive_lcz_proxy(bheight, morph["impervious_frac"])
+    df["lcz_class"] = [int(lcz_grid[int(r["row"]), int(r["col"])]) for r in rows]
+
+    hs_cfg = config.get("hotspot", {})
+    gi_z, gi_p = getis_ord_gi_star(
+        lst_10m,
+        kernel_size=int(hs_cfg.get("gi_star_kernel", 5)),
     )
+    hotspot_grid = classify_hotspots_from_gi(
+        lst_10m,
+        gi_z,
+        gi_p,
+        moderate_delta_c=hs_cfg.get("moderate_delta_c", 2.0),
+        severe_delta_c=hs_cfg.get("severe_delta_c", 4.0),
+        p_threshold=hs_cfg.get("gi_star_p_threshold", 0.05),
+    )
+    df["gi_star_z"] = [float(gi_z[int(r["row"]), int(r["col"])]) for r in rows]
+    df["hotspot_class"] = [int(hotspot_grid[int(r["row"]), int(r["col"])]) for r in rows]
     df["thermal_stress_class"] = np.where(df["lst_c"] >= 40, 2, np.where(df["lst_c"] >= 37, 1, 0))
     df["tile_id"] = (
         (df["lon"] // config["spatial_cv"]["tile_size_deg"]).astype(int).astype(str)

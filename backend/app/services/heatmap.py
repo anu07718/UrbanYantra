@@ -169,12 +169,12 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
             if block.empty:
                 continue
 
-            avg_lst = float(block["lst_c"].mean())
-            avg_ndvi = float(block["ndvi"].mean())
-            avg_ndbi = float(block["ndbi"].mean())
-            hotspot_frac = float((block["hotspot_class"] >= 1).mean())
-            humidity = float(block.get("humidity_proxy", pd.Series([0.55])).mean())
-            utci = float(avg_lst * 0.72 + humidity * 8.0 - 2.5)
+            avg_lst = float(np.nan_to_num(block["lst_c"].mean(), nan=35.0))
+            avg_ndvi = float(np.nan_to_num(block["ndvi"].mean(), nan=0.3))
+            avg_ndbi = float(np.nan_to_num(block["ndbi"].mean(), nan=0.1))
+            hotspot_frac = float(np.nan_to_num((block["hotspot_class"] >= 1).mean(), nan=0.0))
+            humidity = float(np.nan_to_num(block.get("humidity_proxy", pd.Series([0.55])).mean(), nan=0.55))
+            utci = float(np.nan_to_num(avg_lst * 0.72 + humidity * 8.0 - 2.5, nan=35.0))
 
             if avg_lst >= 42 or hotspot_frac > 0.35:
                 vuln = "CRITICAL"
@@ -210,16 +210,16 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
                         "row": r0,
                         "col": c0,
                         "grid_step": step,
-                        "avg_lst_c": round(avg_lst, 2),
-                        "simulated_lst_c": round(avg_lst, 2),
-                        "heat_stress_utci_c": round(utci, 2),
+                        "avg_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
+                        "simulated_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
+                        "heat_stress_utci_c": round(np.nan_to_num(utci, nan=35.0), 2),
                         "cooling_delta_c": 0.0,
-                        "ndvi": round(avg_ndvi, 3),
-                        "ndbi": round(avg_ndbi, 3),
+                        "ndvi": round(np.nan_to_num(avg_ndvi, nan=0.3), 3),
+                        "ndbi": round(np.nan_to_num(avg_ndbi, nan=0.1), 3),
                         "vulnerability_class": vuln,
-                        "hotspot_fraction": round(hotspot_frac, 3),
+                        "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
                         "hotspot_class": int(block["hotspot_class"].max()),
-                        "gi_star_z": round(float(block["gi_star_z"].mean()), 3)
+                        "gi_star_z": round(float(np.nan_to_num(block["gi_star_z"].mean(), nan=0.0)), 3)
                         if "gi_star_z" in block.columns
                         else 0.0,
                     },

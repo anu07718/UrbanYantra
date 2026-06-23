@@ -170,131 +170,69 @@ export default function HeatMap({
 }: HeatMapProps) {
   const [showGrid, setShowGrid] = useState(true);
   const [showDomains, setShowDomains] = useState(true);
-  const [pitch, setPitch] = useState(45);
-  const [viewState, setViewState] = useState<MapViewState>(() => ({
-    longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
-    latitude: bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
-    zoom: 10.5,
-    pitch: 45,
-    bearing: -15,
-    minZoom: 6,
-    maxZoom: 18,
-  }));
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [showFineGrid, setShowFineGrid] = useState(false);
+  const [showPoints, setShowPoints] = useState(true);
 
-  /* sync pitch into viewState when user clicks a button */
-  const applyPitch = useCallback((p: number) => {
-    setPitch(p);
-    setViewState((v) => ({ ...v, pitch: p }));
-  }, []);
+  const center = useMemo(() => {
+    if (bbox?.length === 4) return [(bbox[1] + bbox[3]) / 2, (bbox[0] + bbox[2]) / 2] as [number, number];
+    return [19.08, 72.87] as [number, number];
+  }, [bbox]);
 
-  /* recenter when city changes */
-  const centeredView = useMemo<MapViewState>(() => ({
-    longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
-    latitude: bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
-    zoom: 10.5,
-    pitch,
-    bearing: -15,
-    minZoom: 6,
-    maxZoom: 18,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cityKey]);
+  const overlayBounds = (heatmapMeta?.bounds ?? [
+    [bbox[1], bbox[0]],
+    [bbox[3], bbox[2]],
+  ]) as LatLngBoundsExpression;
 
-  /* build the regular grid only when city / sample-points change */
-  const avgLst = useMemo(() => {
-    const pts = samplePoints?.features ?? [];
-    if (pts.length === 0) return 37;
-    return pts.reduce((s, p) => s + p.properties.lst_c, 0) / pts.length;
-  }, [samplePoints]);
+  const overlayUrl = `${apiBase()}/cities/${cityKey}/heatmap/${layer}.png?t=${heatmapMeta?.vmax ?? 0}`;
 
-  const regularGrid = useMemo(
-    () => bbox?.length === 4
-      ? buildRegularGrid(bbox, samplePoints, avgLst, 60, 60)
-      : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cityKey, samplePoints, avgLst],
-  );
+  const domainStyle = (feature?: Feature<Geometry, GeoJsonProperties>): PathOptions => {
+    const props = feature?.properties as WardProperties | undefined;
+    if (!props) return { fillOpacity: 0.1, weight: 1, color: "#94a3b8" };
+    const selected = selectedWard?.ward_id === props.ward_id;
+    const sim = wardSimulations[props.ward_id];
+    return {
+      fillColor: sim !== undefined ? lstToColor(sim) : lstToColor(props.avg_lst_c),
+      fillOpacity: showHeatmap ? 0.08 : 0.45,
+      color: selected ? "#22d3ee" : "#e2e8f0",
+      weight: selected ? 2.5 : 1.2,
+    };
+  };
 
-  /* hover handler */
-  const handleHover = useCallback((info: PickingInfo) => {
-    if (info.object && info.x != null && info.y != null) {
-      const p = info.object.properties as GridCell;
-      const lst = wardSimulations[p.ward_id] ?? p.avg_lst_c;
-      setTooltip({ x: info.x, y: info.y, lst, vuln: p.vulnerability_class, name: p.name });
-    } else {
-      setTooltip(null);
-    }
-  }, [wardSimulations]);
+  const gridStyle = (feature?: Feature<Geometry, GeoJsonProperties>): PathOptions => {
+    const props = feature?.properties as WardProperties | undefined;
+    if (!props) return { fillOpacity: 0, weight: 0.3, color: "#475569" };
+    const sim = wardSimulations[props.ward_id];
+    return {
+      fillColor: sim !== undefined ? lstToColor(sim) : lstToColor(props.avg_lst_c),
+      fillOpacity: 0.35,
+      color: "rgba(71,85,105,0.6)",
+      weight: 0.4,
+    };
+  };
 
-  /* deck.gl layers */
-  const layers = useMemo(() => {
-    const out = [];
-
-    /* ── 3-D extruded regular grid ─────────────────────────────────── */
-    if (showGrid && regularGrid) {
-      out.push(
-        new GeoJsonLayer<GridCell>({
-          id: `grid-3d-${cityKey}`,
-          data: regularGrid as FeatureCollection<Polygon, GridCell>,
-          pickable: true,
-          stroked: true,
-          filled: true,
-          extruded: true,
-          wireframe: true,
-          lineWidthMinPixels: 1,
-          /* white wire between cells */
-          getLineColor: [255, 255, 255, 25] as [number, number, number, number],
-          getFillColor: (f) => {
-            const lst = wardSimulations[f.properties.ward_id] ?? f.properties.avg_lst_c;
-            return tierRgba(lst, 235);
-          },
-          /* height = 0 at 30°C, rises ~2 100 m at 44°C (exaggerated for drama) */
-          getElevation: (f) => {
-            const lst = wardSimulations[f.properties.ward_id] ?? f.properties.avg_lst_c;
-            return Math.max(0, (lst - 30) * 200);
-          },
-          elevationScale: 1,
-          updateTriggers: { getFillColor: wardSimulations, getElevation: wardSimulations },
-          transitions: { getFillColor: 400, getElevation: 400 },
-          onHover: handleHover,
-          onClick: (info: PickingInfo) => {
-            if (info.object) onSelectWard(info.object.properties as WardProperties);
-          },
-        })
-      );
-    }
-
-    /* ── Named ward outlines (flat, almost transparent) ────────────── */
-    if (showDomains && domains) {
-      out.push(
-        new GeoJsonLayer({
-          id: `wards-${cityKey}`,
-          data: domains as unknown as FeatureCollection,
-          pickable: true,
-          stroked: true,
-          filled: true,
-          extruded: false,
-          lineWidthMinPixels: 2,
-          getLineColor: (f: { properties: WardProperties }) =>
-            (selectedWard?.ward_id === f.properties.ward_id
-              ? [8, 145, 178, 255]
-              : [60, 80, 120, 140]) as [number, number, number, number],
-          getFillColor: (_f: unknown) => [0, 0, 0, 0] as [number, number, number, number],
-          updateTriggers: { getLineColor: selectedWard?.ward_id },
-          onHover: handleHover,
-          onClick: (info: PickingInfo) => {
-            if (info.object) onSelectWard(info.object.properties as WardProperties);
-          },
-        })
-      );
-    }
-
-    return out;
-  }, [cityKey, regularGrid, domains, showGrid, showDomains, wardSimulations, selectedWard, handleHover, onSelectWard]);
-
-  const vulnCls = (v: string) =>
-    v === "CRITICAL" ? "text-red-500" : v === "HIGH" ? "text-orange-500" :
-      v === "MODERATE" ? "text-yellow-600" : "text-green-600";
+  const bindDomain = (feature: Feature<Geometry, GeoJsonProperties>, layerInst: Layer) => {
+    const props = feature.properties as WardProperties;
+    const sim = wardSimulations[props.ward_id];
+    const lst = sim ?? props.avg_lst_c;
+    layerInst.bindPopup(
+      `<strong>${props.name}</strong><br/>LST: ${lst}°C<br/>UTCI: ${props.heat_stress_utci_c}°C<br/>Vulnerability: ${props.vulnerability_class}`
+    );
+    layerInst.on({
+      click: () => onSelectWard(props),
+      mouseover: (e) => {
+        e.target.setStyle({ weight: 2.5, color: "#67e8f9", fillOpacity: 0.25 });
+        e.target.openPopup();
+      },
+      mouseout: (e) => {
+        const selected = selectedWard?.ward_id === props.ward_id;
+        e.target.setStyle({
+          weight: selected ? 2.5 : 1.2,
+          color: selected ? "#22d3ee" : "#e2e8f0",
+          fillOpacity: showHeatmap ? 0.08 : 0.45,
+        });
+      },
+    });
+  };
 
   return (
     <div className="relative min-h-0 flex-1">

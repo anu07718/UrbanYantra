@@ -6,11 +6,18 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
 
 logger = logging.getLogger(__name__)
+
+
+def _read_raster(path: Path) -> np.ndarray:
+    """Read raster file using rasterio."""
+    with rasterio.open(path) as src:
+        return src.read(1).astype(np.float32)
 
 
 def _lst_kelvin_to_celsius(k: np.ndarray) -> np.ndarray:
@@ -93,7 +100,13 @@ def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:
     mode = config.get("data_mode", "synthetic")
     if mode == "gee":
         try:
-            return fetch_landsat_lst_gee(config, out_dir)
+            raw_path = fetch_landsat_lst_gee(config, out_dir)
+            # Process raw Landsat (Kelvin) to Celsius and save
+            lst_k = _read_raster(raw_path)
+            lst_c = _lst_kelvin_to_celsius(lst_k)
+            save_geotiff(lst_c, out_path, config["bbox"])
+            logger.info("Processed Landsat LST saved to %s", out_path)
+            return out_path
         except Exception as exc:
             logger.warning("GEE Landsat fetch failed: %s — using synthetic.", exc)
 

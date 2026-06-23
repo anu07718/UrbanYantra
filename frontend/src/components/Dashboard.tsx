@@ -14,8 +14,11 @@ import {
   getDomains,
   getDrivers,
   getHeatmapMeta,
+  getHotspots,
+  getModelMetrics,
   getSamplePoints,
   getWards,
+  predictPoint,
   runScenario,
 } from "@/lib/api";
 import type {
@@ -25,7 +28,10 @@ import type {
   CoolingStrategy,
   Driver,
   HeatmapMeta,
+  HotspotCollection,
   MapLayer,
+  ModelMetrics,
+  PointPrediction,
   SamplePointCollection,
   SimulationState,
   WardCollection,
@@ -52,9 +58,13 @@ export default function Dashboard() {
   const [fineGrid, setFineGrid] = useState<WardCollection | null>(null);
   const [heatmapMeta, setHeatmapMeta] = useState<HeatmapMeta | null>(null);
   const [samplePoints, setSamplePoints] = useState<SamplePointCollection | null>(null);
+  const [hotspots, setHotspots] = useState<HotspotCollection | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [cooling, setCooling] = useState<CoolingStrategy[]>([]);
   const [climate, setClimate] = useState<ClimatePoint[]>([]);
+  const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null);
+  const [pointPrediction, setPointPrediction] = useState<PointPrediction | null>(null);
+  const [predicting, setPredicting] = useState(false);
   const [sim, setSim] = useState<SimulationState>(DEFAULT_SIM);
   const [mapLayer, setMapLayer] = useState<MapLayer>("lst");
   const [selectedWard, setSelectedWard] = useState<WardProperties | null>(null);
@@ -78,16 +88,20 @@ export default function Dashboard() {
     setHeatmapMeta(null);
     setSamplePoints(null);
     setSelectedWard(null);
+    setModelMetrics(null);
+    setPointPrediction(null);
 
     const results = await Promise.allSettled([
-      getCitySummary(key),
-      getDomains(key),
-      getWards(key, 4),
-      getDrivers(key),
-      getCoolingPotential(key),
-      getClimate(key),
-      getHeatmapMeta(key, layer),
-      getSamplePoints(key, 2),
+      getCitySummary(key),        // 0
+      getDomains(key),            // 1
+      getWards(key, 4),           // 2
+      getDrivers(key),            // 3
+      getCoolingPotential(key),   // 4
+      getClimate(key),            // 5
+      getHeatmapMeta(key, layer), // 6
+      getSamplePoints(key, 2),    // 7
+      getModelMetrics(key),       // 8
+      getHotspots(key),           // 9
     ]);
 
     const val = <T,>(i: number): T | null =>
@@ -114,6 +128,8 @@ export default function Dashboard() {
     setClimate(val<ClimatePoint[]>(5) ?? []);
     setHeatmapMeta(val<HeatmapMeta>(6));
     setSamplePoints(val<SamplePointCollection>(7));
+    setModelMetrics(val<ModelMetrics>(8));
+    setHotspots(val<HotspotCollection>(9));
 
     const firstDomain = dom?.features[0]?.properties;
     setSim((prev) => ({
@@ -136,7 +152,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     getCities()
-      .then((list) => {
+      .then((list: CityInfo[]) => {
         setCities(list);
         const withData = list.find((c) => c.has_data);
         if (withData) setCityKey(withData.city_key);
@@ -174,13 +190,14 @@ export default function Dashboard() {
   const handleRun = async () => {
     setRunning(true);
     try {
-      const result = await runScenario(cityKey, {
-        cool_roofs_pct: sim.coolRoofs,
-        green_roofs_pct: sim.greenRoofs,
-        urban_greening_pct: sim.urbanGreening,
-        blue_infra_pct: sim.blueInfra,
-        budget_m_usd: sim.budget,
-      });
+      const result = await runScenario(
+        cityKey,
+        sim.coolRoofs,
+        sim.greenRoofs,
+        sim.urbanGreening,
+        sim.blueInfra,
+        sim.budget
+      );
       const updates: Record<string, number> = {};
       for (const u of result.ward_updates) {
         updates[u.ward_id] = u.simulated_lst_c;
@@ -212,6 +229,22 @@ export default function Dashboard() {
     setScenarioMetrics(null);
   };
 
+  const handleMapClick = useCallback(
+    async (lon: number, lat: number) => {
+      if (!cityKey) return;
+      setPredicting(true);
+      try {
+        const pred = await predictPoint(cityKey, lon, lat);
+        setPointPrediction(pred);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Prediction failed");
+      } finally {
+        setPredicting(false);
+      }
+    },
+    [cityKey]
+  );
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#0f1419] text-slate-100">
       <Header summary={summary} scenarioMetrics={scenarioMetrics ?? undefined} />
@@ -223,6 +256,7 @@ export default function Dashboard() {
           onChange={(e) => setCityKey(e.target.value)}
           disabled={loading}
           className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white disabled:opacity-50"
+          suppressHydrationWarning
         >
           {cities.map((c) => (
             <option key={c.city_key} value={c.city_key} disabled={!c.has_data}>
@@ -245,7 +279,7 @@ export default function Dashboard() {
         {error && !loading && <span className="text-xs text-amber-400">{error}</span>}
       </div>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <CoolingSimulator
           wards={wardNames}
           state={sim}
@@ -259,9 +293,11 @@ export default function Dashboard() {
           onRun={handleRun}
           onReset={handleReset}
           running={running}
+          scenarioResult={scenarioMetrics}
+          baselineLst={summary?.metrics?.avg_city_lst_c}
         />
 
-        <main className="relative flex min-w-0 flex-1 flex-col">
+        <main className="relative flex min-w-0 flex-1 overflow-hidden">
           {summary && (
             <HeatMap
               cityKey={cityKey}
@@ -269,6 +305,7 @@ export default function Dashboard() {
               domains={domains}
               fineGrid={fineGrid}
               samplePoints={samplePoints}
+              hotspots={hotspots}
               heatmapMeta={heatmapMeta}
               bbox={summary.bbox}
               layer={mapLayer}
@@ -276,11 +313,15 @@ export default function Dashboard() {
               targetWard={sim.targetWard}
               onSelectWard={(w) => {
                 setSelectedWard(w);
+                if (!w) setPointPrediction(null);
                 if (w) setSim((s) => ({ ...s, targetWard: w.name }));
                 else setSim((s) => ({ ...s, targetWard: "Full City" }));
               }}
               wardSimulations={wardSimulations}
               onLayerChange={setMapLayer}
+              pointPrediction={pointPrediction}
+              predicting={predicting}
+              onMapClick={handleMapClick}
             />
           )}
           {!summary && !loading && (
@@ -290,7 +331,13 @@ export default function Dashboard() {
           )}
         </main>
 
-        <RightPanel cooling={cooling} drivers={drivers} climate={climate} dataMode={summary?.data_mode} />
+        <RightPanel
+          cooling={cooling}
+          drivers={drivers}
+          climate={climate}
+          modelMetrics={modelMetrics}
+          dataMode={summary?.data_mode}
+        />
       </div>
 
       {summary && <AIChat cityKey={cityKey} cityName={summary.city_name} />}

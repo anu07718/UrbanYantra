@@ -107,3 +107,49 @@ export interface SimulationState {
   budget: number;
   targetWard: string;
 }
+
+export interface ModelMetrics {
+  city_key: string;
+  model: string;
+  validation: string;
+  lst_regression: {
+    mae_c: number;
+    r2: number;
+    rf_mae_c: number;
+    rf_r2: number;
+  };
+  hotspot_classifier: {
+    accuracy: number;
+  };
+  feature_count: number;
+}
+
+export interface PointPrediction {
+  city_key: string;
+  lon: number;
+  lat: number;
+  pixel_lon: number;
+  pixel_lat: number;
+  observed_lst_c: number;
+  predicted_lst_c: number;
+  residual_c: number;
+  observed_hotspot_class: number;
+  predicted_hotspot_class: number;
+  hotspot_label: string;
+  probabilities: { class: number; label: string; probability: number }[];
+  lst_model: string;
+  hotspot_model: string;
+}
+
+// Phase 2 — Hotspot overlay
+export interface HotspotFeature {
+  type: "Feature";
+  geometry: { type: "Point"; coordinates: [number, number] };
+  properties: { hotspot_id: string; lst_c: number; hotspot_class: number };
+}
+
+export interface HotspotCollection {
+  type: "FeatureCollection";
+  features: HotspotFeature[];
+}
+

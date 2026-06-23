@@ -6,9 +6,11 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
+from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +33,15 @@ def generate_synthetic_lulc(shape: tuple[int, int] = (120, 120)) -> np.ndarray:
 
 def ingest_worldcover(config: dict, out_dir: Path) -> Path:
     out_path = out_dir / "rasters" / "worldcover.tif"
+    expected_shape = synthetic_grid_shape(config) if config.get("data_mode", "synthetic") == "synthetic" else None
     if out_path.exists():
-        return out_path
+        if expected_shape is None:
+            return out_path
+        with rasterio.open(out_path) as src:
+            if (src.height, src.width) == expected_shape:
+                return out_path
+        logger.warning("Cached worldcover.tif shape mismatch — regenerating for %s.", config.get("city_name"))
+        out_path.unlink(missing_ok=True)
 
     mode = config.get("data_mode", "synthetic")
     if mode == "gee":
@@ -65,6 +74,6 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
         except Exception as exc:
             logger.warning("WorldCover GEE failed: %s — synthetic.", exc)
 
-    lulc = generate_synthetic_lulc()
+    lulc = generate_synthetic_lulc(synthetic_grid_shape(config))
     save_geotiff(lulc.astype(np.float32), out_path, config["bbox"], nodata=0)
     return out_path

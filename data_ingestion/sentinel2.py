@@ -10,6 +10,7 @@ import numpy as np
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
 from features.spectral_indices import compute_indices_from_bands
+from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def ingest_sentinel2_indices(config: dict, out_dir: Path) -> dict[str, Path]:
             logger.warning("GEE Sentinel-2 failed: %s — synthetic.", exc)
 
     if bands is None:
-        bands = generate_synthetic_s2_bands(config)
+        bands = generate_synthetic_s2_bands(config, shape=synthetic_grid_shape(config))
 
     indices = compute_indices_from_bands(bands)
     paths = {}

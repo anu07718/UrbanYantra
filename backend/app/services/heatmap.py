@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[3]
 # step=2 → 60×60 cells (~3.6k); step=1 → full 120×120 (14.4k, heavier)
 DEFAULT_GRID_STEP = 2
 MAX_GRID_FEATURES = 14400
+MAX_SAMPLE_POINTS = 12000
 
 
 def _city_out_dir(city_key: str) -> Path:
@@ -35,6 +36,11 @@ def _city_out_dir(city_key: str) -> Path:
 def _read_raster(path: Path) -> np.ndarray:
     with rasterio.open(path) as src:
         return src.read(1).astype(np.float32)
+
+
+@lru_cache(maxsize=16)
+def _load_feature_table(city_key: str) -> pd.DataFrame:
+    return pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
 
 
 def _raster_bounds(city_key: str) -> tuple[float, float, float, float]:
@@ -83,7 +89,7 @@ def _colormap_for_layer(layer: str):
 
 @lru_cache(maxsize=64)
 def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
-    df = pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
+    df = _load_feature_table(city_key)
     arr = _layer_array(city_key, layer, df)
     valid = arr[np.isfinite(arr)]
     vmin = float(np.percentile(valid, 2)) if valid.size else 0.0
@@ -107,7 +113,7 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
     maps_dir.mkdir(parents=True, exist_ok=True)
     cache = maps_dir / f"overlay_{layer}.png"
 
-    df = pd.read_parquet(out_dir / "tables" / "feature_table.parquet")
+    df = _load_feature_table(city_key)
     arr = _layer_array(city_key, layer, df)
     meta = get_heatmap_meta(city_key, layer)
 
@@ -143,7 +149,7 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
     step=1 → full 120×120 resolution; larger step aggregates blocks.
     """
     cfg = load_city_config(ROOT / "configs" / "cities.yaml", city_key)
-    df = pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
+    df = _load_feature_table(city_key)
     bbox = cfg["bbox"]
     min_lon, min_lat, max_lon, max_lat = bbox
     h = int(df["row"].max()) + 1
@@ -161,70 +167,85 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
     d_lat = (max_lat - min_lat) / h
     features: list[dict[str, Any]] = []
 
-    for r0 in range(0, h, step):
-        for c0 in range(0, w, step):
-            r1 = min(r0 + step, h)
-            c1 = min(c0 + step, w)
-            block = df[(df["row"] >= r0) & (df["row"] < r1) & (df["col"] >= c0) & (df["col"] < c1)]
-            if block.empty:
-                continue
+    grouped_df = df.assign(
+        row_bin=(df["row"] // step) * step,
+        col_bin=(df["col"] // step) * step,
+        hotspot_flag=(df["hotspot_class"] >= 1).astype(float),
+    )
+    aggregations = {
+        "lst_c": "mean",
+        "ndvi": "mean",
+        "ndbi": "mean",
+        "hotspot_flag": "mean",
+        "hotspot_class": "max",
+    }
+    if "humidity_proxy" in grouped_df.columns:
+        aggregations["humidity_proxy"] = "mean"
+    if "gi_star_z" in grouped_df.columns:
+        aggregations["gi_star_z"] = "mean"
 
-            avg_lst = float(np.nan_to_num(block["lst_c"].mean(), nan=35.0))
-            avg_ndvi = float(np.nan_to_num(block["ndvi"].mean(), nan=0.3))
-            avg_ndbi = float(np.nan_to_num(block["ndbi"].mean(), nan=0.1))
-            hotspot_frac = float(np.nan_to_num((block["hotspot_class"] >= 1).mean(), nan=0.0))
-            humidity = float(np.nan_to_num(block.get("humidity_proxy", pd.Series([0.55])).mean(), nan=0.55))
-            utci = float(np.nan_to_num(avg_lst * 0.72 + humidity * 8.0 - 2.5, nan=35.0))
+    blocks = grouped_df.groupby(["row_bin", "col_bin"], sort=False).agg(aggregations).reset_index()
 
-            if avg_lst >= 42 or hotspot_frac > 0.35:
-                vuln = "CRITICAL"
-            elif avg_lst >= 40 or hotspot_frac > 0.2:
-                vuln = "HIGH"
-            elif avg_lst >= 38:
-                vuln = "MODERATE"
-            else:
-                vuln = "LOW"
+    for block in blocks.itertuples(index=False):
+        r0 = int(block.row_bin)
+        c0 = int(block.col_bin)
+        r1 = min(r0 + step, h)
+        c1 = min(c0 + step, w)
 
-            # Pixel corners in lon/lat (north-up raster)
-            w_min_lon = min_lon + c0 * d_lon
-            w_max_lon = min_lon + c1 * d_lon
-            w_max_lat = max_lat - r0 * d_lat
-            w_min_lat = max_lat - r1 * d_lat
+        avg_lst = float(np.nan_to_num(block.lst_c, nan=35.0))
+        avg_ndvi = float(np.nan_to_num(block.ndvi, nan=0.3))
+        avg_ndbi = float(np.nan_to_num(block.ndbi, nan=0.1))
+        hotspot_frac = float(np.nan_to_num(block.hotspot_flag, nan=0.0))
+        humidity = float(np.nan_to_num(getattr(block, "humidity_proxy", 0.55), nan=0.55))
+        utci = float(np.nan_to_num(avg_lst * 0.72 + humidity * 8.0 - 2.5, nan=35.0))
 
-            cell_id = f"{city_key}_r{r0}_c{c0}"
-            polygon = [
-                [w_min_lon, w_min_lat],
-                [w_max_lon, w_min_lat],
-                [w_max_lon, w_max_lat],
-                [w_min_lon, w_max_lat],
-                [w_min_lon, w_min_lat],
-            ]
+        if avg_lst >= 42 or hotspot_frac > 0.35:
+            vuln = "CRITICAL"
+        elif avg_lst >= 40 or hotspot_frac > 0.2:
+            vuln = "HIGH"
+        elif avg_lst >= 38:
+            vuln = "MODERATE"
+        else:
+            vuln = "LOW"
 
-            features.append(
-                {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [polygon]},
-                    "properties": {
-                        "ward_id": cell_id,
-                        "name": f"Cell {r0},{c0}",
-                        "row": r0,
-                        "col": c0,
-                        "grid_step": step,
-                        "avg_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
-                        "simulated_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
-                        "heat_stress_utci_c": round(np.nan_to_num(utci, nan=35.0), 2),
-                        "cooling_delta_c": 0.0,
-                        "ndvi": round(np.nan_to_num(avg_ndvi, nan=0.3), 3),
-                        "ndbi": round(np.nan_to_num(avg_ndbi, nan=0.1), 3),
-                        "vulnerability_class": vuln,
-                        "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
-                        "hotspot_class": int(block["hotspot_class"].max()),
-                        "gi_star_z": round(float(np.nan_to_num(block["gi_star_z"].mean(), nan=0.0)), 3)
-                        if "gi_star_z" in block.columns
-                        else 0.0,
-                    },
-                }
-            )
+        # Pixel corners in lon/lat (north-up raster)
+        w_min_lon = min_lon + c0 * d_lon
+        w_max_lon = min_lon + c1 * d_lon
+        w_max_lat = max_lat - r0 * d_lat
+        w_min_lat = max_lat - r1 * d_lat
+
+        cell_id = f"{city_key}_r{r0}_c{c0}"
+        polygon = [
+            [w_min_lon, w_min_lat],
+            [w_max_lon, w_min_lat],
+            [w_max_lon, w_max_lat],
+            [w_min_lon, w_max_lat],
+            [w_min_lon, w_min_lat],
+        ]
+
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [polygon]},
+                "properties": {
+                    "ward_id": cell_id,
+                    "name": f"Cell {r0},{c0}",
+                    "row": r0,
+                    "col": c0,
+                    "grid_step": step,
+                    "avg_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
+                    "simulated_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
+                    "heat_stress_utci_c": round(np.nan_to_num(utci, nan=35.0), 2),
+                    "cooling_delta_c": 0.0,
+                    "ndvi": round(np.nan_to_num(avg_ndvi, nan=0.3), 3),
+                    "ndbi": round(np.nan_to_num(avg_ndbi, nan=0.1), 3),
+                    "vulnerability_class": vuln,
+                    "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
+                    "hotspot_class": int(getattr(block, "hotspot_class", 0)),
+                    "gi_star_z": round(float(np.nan_to_num(getattr(block, "gi_star_z", 0.0), nan=0.0)), 3),
+                },
+            }
+        )
 
     return {
         "type": "FeatureCollection",
@@ -235,10 +256,11 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
 
 def build_sample_points_geojson(city_key: str, stride: int = 4) -> dict[str, Any]:
     """Colored sample points for UHI-Analysis-style dot overlay."""
-    df = pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
+    df = _load_feature_table(city_key)
     h = int(df["row"].max()) + 1
     w = int(df["col"].max()) + 1
     stride = max(1, stride)
+    stride = max(stride, int(np.ceil(np.sqrt(len(df) / MAX_SAMPLE_POINTS))))
 
     sampled = df[(df["row"] % stride == 0) & (df["col"] % stride == 0)]
     p33 = float(df["lst_c"].quantile(0.33))
@@ -279,5 +301,10 @@ def build_sample_points_geojson(city_key: str, stride: int = 4) -> dict[str, Any
     return {
         "type": "FeatureCollection",
         "features": features,
-        "meta": {"stride": stride, "point_count": len(features), "grid_size": f"{h}x{w}"},
+        "meta": {
+            "stride": stride,
+            "point_count": len(features),
+            "grid_size": f"{h}x{w}",
+            "max_points": MAX_SAMPLE_POINTS,
+        },
     }

@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from data_ingestion.cache import save_geotiff
+from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
         except Exception as exc:
             logger.warning("GHSL GEE failed: %s — synthetic.", exc)
 
-    height, pop = generate_synthetic_ghsl()
+    height, pop = generate_synthetic_ghsl(synthetic_grid_shape(config))
     save_geotiff(height, paths["building_height"], config["bbox"])
     save_geotiff(pop, paths["population"], config["bbox"])
     return paths

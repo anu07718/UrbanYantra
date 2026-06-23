@@ -11,6 +11,11 @@ def derive_lcz_proxy(building_height: np.ndarray, impervious_frac: np.ndarray) -
 
     Higher values = more compact / built-up (warmer tendency).
     """
+    if building_height.shape != impervious_frac.shape:
+        raise ValueError(
+            f"LCZ inputs shape mismatch: building_height {building_height.shape} "
+            f"vs impervious_frac {impervious_frac.shape}"
+        )
     h = np.clip(building_height, 0, 50)
     imp = np.clip(impervious_frac, 0, 1)
     # Weighted score → discrete LCZ-like classes

@@ -48,6 +48,17 @@ def _read_raster(path: Path) -> np.ndarray:
         return src.read(1).astype(np.float32)
 
 
+def _resize_to_match(arr: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
+    """Resample a raster to the reference grid (handles mixed GEE/synthetic cache sizes)."""
+    if arr.shape == target_shape:
+        return arr.astype(np.float32)
+    from scipy.ndimage import zoom
+
+    zy = target_shape[0] / arr.shape[0]
+    zx = target_shape[1] / arr.shape[1]
+    return zoom(arr, (zy, zx), order=1).astype(np.float32)
+
+
 def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path]:
     """Assemble features + LST target into parquet; export driver attribution raster."""
     raster_dir = out_dir / "rasters"
@@ -69,20 +80,32 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
     bheight = _read_raster(raster_dir / "ghsl_building_height.tif")
     pop = _read_raster(raster_dir / "ghsl_population.tif")
 
-    # Resize GHSL to match 10 m stack if needed
-    if bheight.shape != ndvi.shape:
-        from scipy.ndimage import zoom
-
-        zy = ndvi.shape[0] / bheight.shape[0]
-        zx = ndvi.shape[1] / bheight.shape[1]
-        bheight = zoom(bheight, (zy, zx), order=1)
-        pop = zoom(pop, (zy, zx), order=1)
+    h, w = ndvi.shape
+    target_shape = (h, w)
+    ndbi = _resize_to_match(ndbi, target_shape)
+    ndwi = _resize_to_match(ndwi, target_shape)
+    utfvi = _resize_to_match(utfvi, target_shape)
+    lulc = _resize_to_match(lulc, target_shape)
+    bheight = _resize_to_match(bheight, target_shape)
+    pop = _resize_to_match(pop, target_shape)
 
     osm_path = out_dir / "tables" / "osm_morphology.parquet"
     osm_df = pd.read_parquet(osm_path)
-    h, w = ndvi.shape
-    building_density = osm_df["building_density"].values.reshape(h, w) if len(osm_df) == h * w else None
-    road_density = osm_df["road_density"].values.reshape(h, w) if len(osm_df) == h * w else None
+    building_density = None
+    road_density = None
+    if len(osm_df) == h * w:
+        building_density = osm_df["building_density"].values.reshape(h, w)
+        road_density = osm_df["road_density"].values.reshape(h, w)
+    elif len(osm_df) > 0:
+        osm_h = int(osm_df["row"].max()) + 1
+        osm_w = int(osm_df["col"].max()) + 1
+        if osm_h * osm_w == len(osm_df):
+            building_density = _resize_to_match(
+                osm_df["building_density"].values.reshape(osm_h, osm_w), target_shape
+            )
+            road_density = _resize_to_match(
+                osm_df["road_density"].values.reshape(osm_h, osm_w), target_shape
+            )
 
     morph = compute_morphology_rasters(lulc, building_density, road_density)
     for name, arr in morph.items():
@@ -91,13 +114,7 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
     meteo = pd.read_parquet(out_dir / "tables" / "era5_land_hourly.parquet")
     meteo_summary = summarize_meteo_for_pixels(meteo)
 
-    lst_coarse = _read_raster(raster_dir / "landsat_lst_c.tif")
-    if lst_coarse.shape != ndvi.shape:
-        from scipy.ndimage import zoom
-
-        zy = ndvi.shape[0] / lst_coarse.shape[0]
-        zx = ndvi.shape[1] / lst_coarse.shape[1]
-        lst_coarse = zoom(lst_coarse, (zy, zx), order=1)
+    lst_coarse = _resize_to_match(_read_raster(raster_dir / "landsat_lst_c.tif"), target_shape)
 
     # 10 m LST downscaling: regression-style residual from NDVI/NDBI (PDF recommended path)
     from preprocessing.lst_downscale import downscale_lst

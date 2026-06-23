@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.app.services import city_data, heatmap
+from backend.app.services import city_data, heatmap, model_inference
 
 app = FastAPI(
     title="UrbanCool API",
@@ -43,6 +43,12 @@ class ScenarioRequest(BaseModel):
 class ChatRequest(BaseModel):
     city_key: str = "Bengaluru"
     message: str
+
+
+class PredictRequest(BaseModel):
+    city_key: str = "Bengaluru"
+    lon: float = Field(..., ge=-180, le=180)
+    lat: float = Field(..., ge=-90, le=90)
 
 
 @app.get("/")
@@ -153,10 +159,75 @@ def climate_projection(city_key: str):
         raise HTTPException(500, str(e)) from e
 
 
+@app.get("/cities/{city_key}/model-metrics")
+def model_metrics(city_key: str):
+    try:
+        return model_inference.get_model_metrics(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/predictions/grid")
+def predictions_grid(city_key: str, stride: int = Query(4, ge=1, le=20)):
+    try:
+        return model_inference.build_predictions_grid_geojson(city_key, stride=stride)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/predict/lst")
+def predict_lst(body: PredictRequest):
+    try:
+        return model_inference.predict_lst(body.city_key, body.lon, body.lat)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/predict/hotspot")
+def predict_hotspot(body: PredictRequest):
+    try:
+        return model_inference.predict_hotspot(body.city_key, body.lon, body.lat)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/predict/point")
+def predict_point(body: PredictRequest):
+    try:
+        return model_inference.predict_point(body.city_key, body.lon, body.lat)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
 @app.get("/ranking/{city_key}")
 def ranking(city_key: str, limit: int = 30):
     try:
         return city_data.get_ranking(city_key, limit=limit)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/interventions")
+def interventions(city_key: str, limit: int = 30):
+    """Return cooling intervention rankings for the city.
+
+    This mirrors the existing /ranking endpoint but follows the newer
+    /cities/{city_key}/interventions naming convention used by the UI.
+    """
+    try:
+        return city_data.get_cooling_potential(city_key)[:limit]
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:

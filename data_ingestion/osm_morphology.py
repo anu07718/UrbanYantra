@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from data_ingestion.cache import save_parquet
+from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def fetch_osm_morphology(config: dict, out_dir: Path) -> Path:
 
 
 def _synthetic_morphology(config: dict, out_path: Path) -> Path:
-    h, w = 120, 120
+    h, w = synthetic_grid_shape(config)
     rng = np.random.default_rng(11)
     y, x = np.mgrid[0:h, 0:w]
     urban = np.exp(-((x - w * 0.55) ** 2 + (y - h * 0.45) ** 2) / (2 * 22**2))

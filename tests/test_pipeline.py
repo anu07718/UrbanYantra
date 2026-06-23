@@ -53,3 +53,23 @@ def test_lcz_proxy_range():
     imp = np.array([[0.1, 0.9], [0.8, 0.3]], dtype=np.float32)
     lcz = derive_lcz_proxy(h, imp)
     assert lcz.min() >= 1 and lcz.max() <= 10
+
+
+def test_grid_shape_from_bbox():
+    from utils import grid_shape_from_bbox, synthetic_grid_shape
+
+    h, w = grid_shape_from_bbox([73.80, 18.48, 73.92, 18.58], resolution_m=10, max_side=120)
+    assert h <= 120 and w <= 120
+    assert h >= 1 and w >= 1
+
+    cfg = {"bbox": [72.75, 18.89, 72.98, 19.27], "target_resolution_m": 10}
+    sh, sw = synthetic_grid_shape(cfg)
+    assert sh == sw == 120
+
+
+def test_resize_to_match():
+    from features.build_feature_table import _resize_to_match
+
+    coarse = np.arange(9, dtype=np.float32).reshape(3, 3)
+    out = _resize_to_match(coarse, (6, 6))
+    assert out.shape == (6, 6)

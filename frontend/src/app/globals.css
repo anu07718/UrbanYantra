@@ -16,20 +16,32 @@ body {
   color: var(--foreground);
 }
 
-/* Leaflet dark tweaks */
-.leaflet-container {
-  background: #1a2030;
-  font-family: inherit;
+/* MapLibre / deck.gl canvas fills its parent */
+.maplibregl-canvas-container,
+.maplibregl-canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
-.leaflet-control-attribution {
-  background: rgba(15, 20, 25, 0.85) !important;
-  color: #94a3b8 !important;
+/* Attribution pill — light theme */
+.maplibregl-ctrl-attrib {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #64748b !important;
   font-size: 10px !important;
 }
 
-.leaflet-control-attribution a {
-  color: #22d3ee !important;
+.maplibregl-ctrl-attrib a {
+  color: #0284c7 !important;
+}
+
+/* Zoom controls */
+.maplibregl-ctrl-group {
+  background: #fff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+}
+
+.maplibregl-ctrl-group button {
+  color: #334155 !important;
 }
 
 input[type="range"]::-webkit-slider-thumb {

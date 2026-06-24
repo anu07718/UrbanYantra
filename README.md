@@ -28,7 +28,8 @@ pip install -r requirements.txt
 py run_pipeline.py --config configs/pilot_city.yaml
 
 # With Google Earth Engine (after: earthengine authenticate)
-py run_pipeline.py --config configs/pilot_city.yaml --data-mode gee
+# Set gee_project in configs/cities.yaml or GEE_PROJECT env var
+py run_pipeline.py --city Mumbai --data-mode gee --force
 
 # Dashboard
 streamlit run dashboard/app.py
@@ -37,7 +38,8 @@ streamlit run dashboard/app.py
 # Terminal 1 — API (only one instance; if port 8000 is busy, see note below)
 uvicorn backend.app.main:app --reload --port 8000
 # Terminal 2 — Next.js UI
-cd frontend && npm run dev
+cd frontend 
+npm run dev
 # Open http://localhost:3000
 
 # Port 8000 already in use? Either use the running API, or stop it then restart:

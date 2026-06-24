@@ -27,7 +27,7 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
         "building_height": out_dir / "rasters" / "ghsl_building_height.tif",
         "population": out_dir / "rasters" / "ghsl_population.tif",
     }
-    if all(p.exists() for p in paths.values()):
+    if all(p.exists() for p in paths.values()) and not config.get("force_refresh"):
         return paths
 
     mode = config.get("data_mode", "synthetic")
@@ -38,7 +38,7 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
 
             from data_ingestion.gee_client import get_study_region, init_gee
 
-            if not init_gee():
+            if not init_gee(config=config):
                 raise RuntimeError("GEE not available")
             region = get_study_region(config["bbox"])
             scale = config.get("target_resolution_m", 10) * 10  # GHSL ~100 m native

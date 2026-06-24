@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from geography.ward_seeds import WARD_COORDINATES, nearest_ward_name as _nearest_ward_name
+from features.display_pixels import visible_pixels
 from simulation.fit_surrogate import predict_surrogate
 from utils import list_city_keys, load_city_config
 
@@ -138,6 +140,24 @@ def _city_out_dir(city_key: str) -> Path:
     return ROOT / cfg["output_dir"]
 
 
+def _data_bbox(city_key: str) -> list[float] | None:
+    """Extent of visible urban pixels (non-rectangular), padded slightly."""
+    try:
+        df = _load_feature_table(city_key)
+        vis = visible_pixels(df)
+        if vis.empty:
+            vis = df
+        pad = 0.003
+        return [
+            float(vis["lon"].min()) - pad,
+            float(vis["lat"].min()) - pad,
+            float(vis["lon"].max()) + pad,
+            float(vis["lat"].max()) + pad,
+        ]
+    except FileNotFoundError:
+        return None
+
+
 def _load_feature_table(city_key: str) -> pd.DataFrame:
     path = _city_out_dir(city_key) / "tables" / "feature_table.parquet"
     if not path.exists():
@@ -165,14 +185,30 @@ def get_city_summary(city_key: str) -> dict[str, Any]:
     avg_lst = float(df["lst_c"].mean())
     humidity = float(df.get("humidity_proxy", pd.Series([0.55])).mean())
     avg_utci = _approx_utci(avg_lst, humidity)
+    data_bbox = _data_bbox(city_key) or cfg["bbox"]
+    land_df = visible_pixels(df)
+    land_lst = float(land_df["lst_c"].mean()) if len(land_df) else avg_lst
+    cal = get_station_calibration(city_key)
     return {
         "city_key": city_key,
         "city_name": cfg["city_name"],
-        "bbox": cfg["bbox"],
+        "bbox": data_bbox,
+        "config_bbox": cfg["bbox"],
         "data_mode": cfg.get("data_mode", "synthetic"),
+        "grid_resolution_m": cfg.get("target_resolution_m", 10),
+        "calibration": {
+            "bias_c": cal.get("bias_c", 0.0),
+            "method": cal.get("method", "none"),
+            "station_count": len(cal.get("stations", [])),
+        },
+        "ward_boundaries": (
+            "osm_zonal"
+            if (_city_out_dir(city_key) / "geojson" / "ward_zonal.geojson").exists()
+            else "rectangular_fallback"
+        ),
         "metrics": {
-            "avg_city_lst_c": round(avg_lst, 1),
-            "avg_heat_stress_utci_c": round(avg_utci, 1),
+            "avg_city_lst_c": round(land_lst, 1),
+            "avg_heat_stress_utci_c": round(_approx_utci(land_lst, humidity), 1),
             "resilience_index": _resilience_index(df),
             "co2_sequestration_tons_yr": 0.0,
             "total_investment_m_usd": 0.0,
@@ -182,8 +218,20 @@ def get_city_summary(city_key: str) -> dict[str, Any]:
 
 def list_cities() -> list[dict[str, Any]]:
     keys = list_city_keys(CITIES_YAML)
+    state_order = {
+        "Maharashtra": 0,
+        "Delhi": 1,
+        "Karnataka": 2,
+        "Telangana": 3,
+        "Andhra Pradesh": 4,
+        "Tamil Nadu": 5,
+        "West Bengal": 6,
+        "Gujarat": 7,
+    }
     results = []
     for key in keys:
+        cfg = load_city_config(CITIES_YAML, key)
+        state = cfg.get("state", "")
         out = _city_out_dir(key)
         if (out / "tables" / "feature_table.parquet").exists():
             summary = get_city_summary(key)
@@ -191,34 +239,39 @@ def list_cities() -> list[dict[str, Any]]:
                 {
                     "city_key": key,
                     "city_name": summary["city_name"],
+                    "state": state,
                     "has_data": True,
                     "avg_lst_c": summary["metrics"]["avg_city_lst_c"],
                 }
             )
         else:
-            cfg = load_city_config(CITIES_YAML, key)
             results.append(
                 {
                     "city_key": key,
                     "city_name": cfg["city_name"],
+                    "state": state,
                     "has_data": False,
                     "avg_lst_c": None,
                 }
             )
+    results.sort(key=lambda x: (state_order.get(x.get("state", ""), 99), x["city_name"]))
     return results
 
 
 def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str, Any]:
+    """OSM/Voronoi ward polygons with zonal LST stats when available."""
+    zonal_path = _city_out_dir(city_key) / "geojson" / "ward_zonal.geojson"
+    if zonal_path.exists():
+        return json.loads(zonal_path.read_text(encoding="utf-8"))
+
     cfg = load_city_config(CITIES_YAML, city_key)
     df = _load_feature_table(city_key)
     bbox = cfg["bbox"]
     min_lon, min_lat, max_lon, max_lat = bbox
-    names = WARD_NAMES.get(cfg["city_name"], [f"Ward {i + 1}" for i in range(rows * cols)])
-
     lon_edges = np.linspace(min_lon, max_lon, cols + 1)
     lat_edges = np.linspace(min_lat, max_lat, rows + 1)
-    features = []
-    idx = 0
+    features: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
 
     for r in range(rows):
         for c in range(cols):
@@ -230,6 +283,9 @@ def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str,
                 & (df["lat"] >= w_min_lat)
                 & (df["lat"] < w_max_lat if r < rows - 1 else df["lat"] <= w_max_lat)
             ]
+            if ward_df.empty:
+                continue
+            ward_df = visible_pixels(ward_df)
             if ward_df.empty:
                 continue
 
@@ -249,10 +305,8 @@ def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str,
             else:
                 vuln = "LOW"
 
-            name = names[idx % len(names)]
-            idx += 1
-            ward_id = f"{city_key}_{name.lower().replace(' ', '_')}"
-
+            centroid_lon = (w_min_lon + w_max_lon) / 2
+            centroid_lat = (w_min_lat + w_max_lat) / 2
             polygon = [
                 [w_min_lon, w_min_lat],
                 [w_max_lon, w_min_lat],
@@ -260,14 +314,11 @@ def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str,
                 [w_min_lon, w_max_lat],
                 [w_min_lon, w_min_lat],
             ]
-
-            features.append(
+            pending.append(
                 {
-                    "type": "Feature",
-                    "geometry": {"type": "Polygon", "coordinates": [polygon]},
-                    "properties": {
-                        "ward_id": ward_id,
-                        "name": name,
+                    "centroid": (centroid_lon, centroid_lat),
+                    "polygon": polygon,
+                    "props": {
                         "avg_lst_c": round(avg_lst, 2),
                         "simulated_lst_c": round(avg_lst, 2),
                         "heat_stress_utci_c": round(utci, 2),
@@ -280,7 +331,29 @@ def build_ward_geojson(city_key: str, rows: int = 5, cols: int = 4) -> dict[str,
                 }
             )
 
+    ward_labels = [_nearest_ward_name(cfg["city_name"], p["centroid"][0], p["centroid"][1]) for p in pending]
+    for label, item in zip(ward_labels, pending):
+        ward_id = f"{city_key}_{label.lower().replace(' ', '_')}"
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [item["polygon"]]},
+                "properties": {
+                    "ward_id": ward_id,
+                    "name": label,
+                    **item["props"],
+                },
+            }
+        )
+
     return {"type": "FeatureCollection", "features": features}
+
+
+def get_station_calibration(city_key: str) -> dict[str, Any]:
+    path = _city_out_dir(city_key) / "calibration" / "station_calibration.json"
+    if not path.exists():
+        return {"bias_c": 0.0, "stations": [], "method": "not_run"}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def get_hotspots(city_key: str) -> dict[str, Any]:

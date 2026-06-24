@@ -6,10 +6,10 @@ bbox: [73.80, 18.48, 73.92, 18.58]
 crs: EPSG:4326
 target_resolution_m: 10
 
-# Study period — summer clear-sky window for LST
+# Study period — Landsat 8 LST composite window
 date_range:
-  start: "2024-03-01"
-  end: "2024-05-31"
+  start: "2020-01-01"
+  end: "2024-12-31"
   composite_method: median  # median reduces clouds
 
 # Landsat 8 Collection 2 Level-2
@@ -68,7 +68,8 @@ scenarios:
     evap_cooling_c: 1.5
 
 # Data source mode: gee | synthetic
-# Use synthetic when GEE credentials are unavailable (hackathon fallback)
-data_mode: synthetic
+# GEE: Landsat 8 ST_B10 LST + Sentinel-2 indices (requires earthengine authenticate)
+data_mode: gee
+gee_project: western-avatar-491910-s2
 
 output_dir: outputs/pune

@@ -69,6 +69,14 @@ def city_summary(city_key: str):
         raise HTTPException(404, str(e)) from e
 
 
+@app.get("/cities/{city_key}/calibration")
+def city_calibration(city_key: str):
+    try:
+        return city_data.get_station_calibration(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+
+
 @app.get("/cities/{city_key}/domains")
 def city_domains(city_key: str):
     """Named planning wards for simulator target domain (e.g. Borivali, Colaba)."""
@@ -79,9 +87,13 @@ def city_domains(city_key: str):
 
 
 @app.get("/cities/{city_key}/wards")
-def city_wards(city_key: str, step: int | None = Query(4, ge=1, le=20)):
+def city_wards(
+    city_key: str,
+    step: int | None = Query(2, ge=1, le=20),
+    mask_water: bool = Query(True),
+):
     try:
-        return heatmap.build_fine_grid_geojson(city_key, step=step)
+        return heatmap.build_fine_grid_geojson(city_key, step=step, mask_water=mask_water)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:

@@ -41,7 +41,7 @@ def generate_synthetic_meteo(config: dict) -> pd.DataFrame:
 
 def ingest_era5_land(config: dict, out_dir: Path) -> Path:
     out_path = out_dir / "tables" / "era5_land_hourly.parquet"
-    if out_path.exists():
+    if out_path.exists() and not config.get("force_refresh"):
         return out_path
 
     mode = config.get("data_mode", "synthetic")
@@ -51,7 +51,7 @@ def ingest_era5_land(config: dict, out_dir: Path) -> Path:
 
             from data_ingestion.gee_client import get_study_region, init_gee
 
-            if not init_gee():
+            if not init_gee(config=config):
                 raise RuntimeError("GEE not available")
             # Aggregate ERA5-Land to city centroid time series
             region = get_study_region(config["bbox"])

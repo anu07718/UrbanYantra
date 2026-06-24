@@ -78,6 +78,16 @@ export default function Dashboard() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const cityGroups = useMemo(() => {
+    const groups: Record<string, CityInfo[]> = {};
+    for (const c of cities) {
+      const state = c.state || "Other";
+      if (!groups[state]) groups[state] = [];
+      groups[state].push(c);
+    }
+    return groups;
+  }, [cities]);
+
   const loadCity = useCallback(async (key: string, layer: MapLayer) => {
     if (!key) return;
     setLoading(true);
@@ -94,7 +104,7 @@ export default function Dashboard() {
     const results = await Promise.allSettled([
       getCitySummary(key),        // 0
       getDomains(key),            // 1
-      getWards(key, 4),           // 2
+      getWards(key, 2),           // step=2 — ~20 m cells, stable
       getDrivers(key),            // 3
       getCoolingPotential(key),   // 4
       getClimate(key),            // 5
@@ -141,7 +151,7 @@ export default function Dashboard() {
     }
 
     const errs = results
-      .map((r, i) => (r.status === "rejected" && i > 0 ? (r.reason as Error)?.message : null))
+      .map((r, i) => (r.status === "rejected" && i === 0 ? (r.reason as Error)?.message : null))
       .filter(Boolean);
     if (errs.length) setError(errs[0] as string);
 
@@ -174,7 +184,8 @@ export default function Dashboard() {
 
   const wardNames = useMemo(() => {
     const names = domains?.features.map((f) => f.properties.name) ?? [];
-    return ["Full City", ...names];
+    const unique = [...new Set(names)];
+    return ["Full City", ...unique];
   }, [domains]);
 
   const handleTargetWardChange = (name: string) => {
@@ -258,10 +269,14 @@ export default function Dashboard() {
           className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white disabled:opacity-50"
           suppressHydrationWarning
         >
-          {cities.map((c) => (
-            <option key={c.city_key} value={c.city_key} disabled={!c.has_data}>
-              {c.city_name} {c.has_data ? "" : "(run pipeline first)"}
-            </option>
+          {Object.entries(cityGroups).map(([state, group]) => (
+            <optgroup key={state} label={state}>
+              {group.map((c) => (
+                <option key={c.city_key} value={c.city_key} disabled={!c.has_data}>
+                  {c.city_name} {c.has_data ? "" : "(run pipeline)"}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         {summary && (
@@ -300,6 +315,7 @@ export default function Dashboard() {
         <main className="relative flex min-w-0 flex-1 overflow-hidden">
           {summary && (
             <HeatMap
+              key={`${cityKey}-${summary.bbox.join(",")}`}
               cityKey={cityKey}
               cityName={summary.city_name}
               domains={domains}
@@ -335,7 +351,6 @@ export default function Dashboard() {
           cooling={cooling}
           drivers={drivers}
           climate={climate}
-          modelMetrics={modelMetrics}
           dataMode={summary?.data_mode}
         />
       </div>

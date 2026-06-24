@@ -29,7 +29,7 @@ def fetch_landsat_lst_gee(config: dict, out_dir: Path) -> Path:
     """Fetch median LST composite from Landsat 8 C2 L2."""
     import ee
 
-    if not init_gee():
+    if not init_gee(config=config):
         raise RuntimeError("GEE not available")
 
     bbox = config["bbox"]
@@ -45,9 +45,17 @@ def fetch_landsat_lst_gee(config: dict, out_dir: Path) -> Path:
         .filter(ee.Filter.lt("CLOUD_COVER", ls_cfg["cloud_cover_max"]))
     )
 
+    # Prefer clear-sky summer months for urban heat (India: Mar–Jun)
+    lst_months = config.get("date_range", {}).get("lst_months")
+    if lst_months:
+        month_filters = [ee.Filter.calendarRange(int(m), int(m), "month") for m in lst_months]
+        collection = collection.filter(ee.Filter.Or(month_filters))
+
     def apply_scale(img):
         lst = img.select(ls_cfg["lst_band"]).multiply(scale_factor).add(offset)
-        return lst.rename("LST_K").copyProperties(img, ["system:time_start"])
+        # Mask fill / invalid LST pixels (USGS C2 ST band)
+        valid = lst.gt(200).And(lst.lt(400))
+        return lst.updateMask(valid).rename("LST_K").copyProperties(img, ["system:time_start"])
 
     lst_median = collection.map(apply_scale).median().clip(region)
 
@@ -95,7 +103,7 @@ def generate_synthetic_lst(config: dict, shape: tuple[int, int] = (120, 120)) ->
 def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:
     """Ingest Landsat LST; synthetic fallback when data_mode != gee."""
     out_path = out_dir / "rasters" / "landsat_lst_c.tif"
-    if out_path.exists():
+    if out_path.exists() and not config.get("force_refresh"):
         return out_path
 
     mode = config.get("data_mode", "synthetic")

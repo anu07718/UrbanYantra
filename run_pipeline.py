@@ -27,6 +27,7 @@ from features.build_feature_table import build_feature_stack
 from models.leave_one_city_out import leave_one_city_out_cv
 from models.train_baseline import train_baselines
 from outputs.export_maps import export_outputs
+from pipeline.accuracy import run_accuracy_layer
 from simulation.scenarios import run_scenarios
 from simulation.solweig_stub import run_solweig_treeplanter
 from utils import ensure_dir, load_city_config, load_config, list_city_keys
@@ -41,6 +42,8 @@ def run_single_city(config: dict, skip_shap: bool = False) -> pd.DataFrame:
 
     run_ingestion(config)
     df, _ = build_feature_stack(config, out_dir)
+    city_key = config.get("city_key", config.get("city_name", "city").replace(" ", "_"))
+    df = run_accuracy_layer(config, df, out_dir, city_key)
     result = train_baselines(config, df, out_dir)
     df = result["df"]
 
@@ -61,10 +64,11 @@ def main() -> int:
     parser.add_argument(
         "--cities",
         nargs="+",
-        default=["Mumbai", "Delhi_NCR", "Bengaluru", "Ahmedabad"],
+        default=["Mumbai", "Pune", "Delhi_NCR", "Bengaluru", "Hyderabad", "Chennai", "Kolkata"],
         help="City keys for --multi-city",
     )
     parser.add_argument("--data-mode", choices=["synthetic", "gee"], help="Override data_mode")
+    parser.add_argument("--force", action="store_true", help="Re-fetch GEE rasters (ignore cache)")
     parser.add_argument("--skip-shap", action="store_true", help="Skip SHAP (faster)")
     args = parser.parse_args()
 
@@ -76,6 +80,8 @@ def main() -> int:
             config = load_city_config(cities_yaml, key)
             if args.data_mode:
                 config["data_mode"] = args.data_mode
+            if args.force:
+                config["force_refresh"] = True
             df = run_single_city(config, skip_shap=args.skip_shap)
             frames.append(df)
         pooled = pd.concat(frames, ignore_index=True)
@@ -92,6 +98,8 @@ def main() -> int:
 
     if args.data_mode:
         config["data_mode"] = args.data_mode
+    if args.force:
+        config["force_refresh"] = True
 
     run_single_city(config, skip_shap=args.skip_shap)
     logger.info("Dashboard: streamlit run dashboard/app.py")

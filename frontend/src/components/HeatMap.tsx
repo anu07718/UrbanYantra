@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from "react";
 import DeckGL from "@deck.gl/react";
 import { GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo, MapViewState } from "@deck.gl/core";
-import type { Feature, FeatureCollection, Polygon } from "geojson";
+import type { FeatureCollection, Polygon } from "geojson";
 import Map from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
@@ -29,100 +29,13 @@ const TIERS = [
   { key: "cool",     min: -Infinity, max: 34,        rgb: [ 41, 121, 255] as [number,number,number], label: "Cool",     range: "< 34°C"  },
 ];
 
+function displayLst(p: WardProperties): number {
+  return p.lst_calibrated_c ?? p.avg_lst_c;
+}
+
 function tierRgba(lst: number, alpha: number): [number,number,number,number] {
   const t = TIERS.find((t) => lst >= t.min && lst < t.max) ?? TIERS[TIERS.length - 1];
   return [t.rgb[0], t.rgb[1], t.rgb[2], alpha];
-}
-
-/* ── Build a dense regular grid from bbox + sample-point LST values ─────
-   This is what produces the tight uniform cells visible in the screenshot.
-   We divide the bbox into COLS × ROWS cells and interpolate LST from the
-   nearest sample point (fast nearest-neighbour, no extra lib needed).      */
-interface GridCell {
-  ward_id:              string;
-  name:                 string;
-  avg_lst_c:            number;
-  simulated_lst_c:      number;
-  heat_stress_utci_c:   number;
-  cooling_delta_c:      number;
-  ndvi:                 number;
-  ndbi:                 number;
-  vulnerability_class:  string;
-  hotspot_fraction:     number;
-}
-
-function buildRegularGrid(
-  bbox: number[],
-  samplePoints: SamplePointCollection | null,
-  avgLst: number,
-  cols = 60,
-  rows = 60,
-): FeatureCollection<Polygon, GridCell> {
-  const [minLon, minLat, maxLon, maxLat] = bbox;
-  const dLon = (maxLon - minLon) / cols;
-  const dLat = (maxLat - minLat) / rows;
-
-  /* build a fast lookup from sample points */
-  const pts = samplePoints?.features ?? [];
-
-  function nearestLst(cx: number, cy: number): number {
-    if (pts.length === 0) return avgLst;
-    let best = Infinity;
-    let val  = avgLst;
-    for (const p of pts) {
-      const [lon, lat] = p.geometry.coordinates;
-      const d = (lon - cx) ** 2 + (lat - cy) ** 2;
-      if (d < best) { best = d; val = p.properties.lst_c; }
-    }
-    return val;
-  }
-
-  const features: Feature<Polygon, GridCell>[] = [];
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const west  = minLon + c * dLon;
-      const east  = west  + dLon;
-      const south = minLat + r * dLat;
-      const north = south + dLat;
-      const cx = (west + east)   / 2;
-      const cy = (south + north) / 2;
-
-      const lst = nearestLst(cx, cy);
-      const vuln =
-        lst >= 40 ? "CRITICAL" :
-        lst >= 38 ? "HIGH" :
-        lst >= 36 ? "MODERATE" : "NORMAL";
-
-      features.push({
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [[
-            [west,  south],
-            [east,  south],
-            [east,  north],
-            [west,  north],
-            [west,  south],
-          ]],
-        },
-        properties: {
-          ward_id:             `cell_${r}_${c}`,
-          name:                `Cell ${r},${c}`,
-          avg_lst_c:           lst,
-          simulated_lst_c:     lst,
-          heat_stress_utci_c:  lst * 0.72,
-          cooling_delta_c:     0,
-          ndvi:                0,
-          ndbi:                0,
-          vulnerability_class: vuln,
-          hotspot_fraction:    lst >= 38 ? 1 : 0,
-        },
-      });
-    }
-  }
-
-  return { type: "FeatureCollection", features };
 }
 
 /* ── Layer / view constants ─────────────────────────────────────────────── */
@@ -166,6 +79,7 @@ export default function HeatMap({
   cityKey,
   cityName,
   domains,
+  fineGrid,
   hotspots,
   samplePoints,
   bbox,
@@ -185,7 +99,7 @@ export default function HeatMap({
   const [viewState,   setViewState]   = useState<MapViewState>(() => ({
     longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
     latitude:  bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
-    zoom:      10.5,
+    zoom:      11.2,
     pitch:     45,
     bearing:   -15,
     minZoom:   6,
@@ -203,50 +117,50 @@ export default function HeatMap({
   const centeredView = useMemo<MapViewState>(() => ({
     longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
     latitude:  bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
-    zoom:      10.5,
+    zoom:      11.2,
     pitch,
     bearing:   -15,
     minZoom:   6,
     maxZoom:   18,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cityKey]);
+  }), [cityKey, bbox, pitch]);
 
-  /* build the regular grid only when city / sample-points change */
-  const avgLst = useMemo(() => {
-    const pts = samplePoints?.features ?? [];
-    if (pts.length === 0) return 37;
-    return pts.reduce((s, p) => s + p.properties.lst_c, 0) / pts.length;
-  }, [samplePoints]);
+  /* Use API pixel-aligned grid only — no client-side bbox fallback (misaligns) */
+  const displayGrid = useMemo<WardCollection | null>(() => {
+    if (fineGrid?.features?.length) return fineGrid;
+    return null;
+  }, [fineGrid]);
 
-  const regularGrid = useMemo(
-    () => bbox?.length === 4
-      ? buildRegularGrid(bbox, samplePoints, avgLst, 60, 60)
-      : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cityKey, samplePoints, avgLst],
-  );
-
-  /* hover handler */
-  const handleHover = useCallback((info: PickingInfo) => {
+  const handleGridHover = useCallback((info: PickingInfo) => {
     if (info.object && info.x != null && info.y != null) {
-      const p = info.object.properties as GridCell;
-      const lst = wardSimulations[p.ward_id] ?? p.avg_lst_c;
+      const p = info.object.properties as WardProperties;
+      const lst = wardSimulations[p.ward_id] ?? displayLst(p);
       setTooltip({ x: info.x, y: info.y, lst, vuln: p.vulnerability_class, name: p.name });
     } else {
       setTooltip(null);
     }
   }, [wardSimulations]);
 
+  const handleWardHover = useCallback((info: PickingInfo) => {
+    if (!showGrid && info.object && info.x != null && info.y != null) {
+      const p = info.object.properties as WardProperties;
+      const lst = wardSimulations[p.ward_id] ?? displayLst(p);
+      setTooltip({ x: info.x, y: info.y, lst, vuln: p.vulnerability_class, name: p.name });
+    } else if (showGrid) {
+      setTooltip(null);
+    }
+  }, [wardSimulations, showGrid]);
+
   /* deck.gl layers */
   const layers = useMemo(() => {
     const out = [];
 
     /* ── 3-D extruded regular grid ─────────────────────────────────── */
-    if (showGrid && regularGrid) {
+    if (showGrid && displayGrid) {
       out.push(
-        new GeoJsonLayer<GridCell>({
+        new GeoJsonLayer<WardProperties>({
           id:                 `grid-3d-${cityKey}`,
-          data:               regularGrid as FeatureCollection<Polygon, GridCell>,
+          data:               displayGrid as FeatureCollection<Polygon, WardProperties>,
           pickable:           true,
           stroked:            true,
           filled:             true,
@@ -256,18 +170,20 @@ export default function HeatMap({
           /* white wire between cells */
           getLineColor:  [255, 255, 255, 25] as [number,number,number,number],
           getFillColor:  (f) => {
-            const lst = wardSimulations[f.properties.ward_id] ?? f.properties.avg_lst_c;
+            const p = f.properties as WardProperties;
+            const lst = wardSimulations[p.ward_id] ?? displayLst(p);
             return tierRgba(lst, 235);
           },
           /* height = 0 at 30°C, rises ~2 100 m at 44°C (exaggerated for drama) */
           getElevation:  (f) => {
-            const lst = wardSimulations[f.properties.ward_id] ?? f.properties.avg_lst_c;
+            const p = f.properties as WardProperties;
+            const lst = wardSimulations[p.ward_id] ?? displayLst(p);
             return Math.max(0, (lst - 30) * 200);
           },
           elevationScale: 1,
           updateTriggers: { getFillColor: wardSimulations, getElevation: wardSimulations },
           transitions:    { getFillColor: 400, getElevation: 400 },
-          onHover:  handleHover,
+          onHover:  handleGridHover,
           onClick:  (info: PickingInfo) => {
             if (info.object) onSelectWard(info.object.properties as WardProperties);
             if (info.coordinate) onMapClick(info.coordinate[0], info.coordinate[1]);
@@ -276,13 +192,13 @@ export default function HeatMap({
       );
     }
 
-    /* ── Named ward outlines ─────────────────────────────────────────── */
+    /* ── Named ward outlines (labels only when grid hidden) ───────── */
     if (showDomains && domains) {
       out.push(
         new GeoJsonLayer({
           id:                 `wards-${cityKey}`,
           data:               domains as unknown as FeatureCollection,
-          pickable:           true,
+          pickable:           !showGrid,
           stroked:            true,
           filled:             true,
           extruded:           false,
@@ -293,7 +209,7 @@ export default function HeatMap({
               : [60, 80, 120, 140]) as [number,number,number,number],
           getFillColor: (_f: unknown) => [0, 0, 0, 0] as [number,number,number,number],
           updateTriggers: { getLineColor: selectedWard?.ward_id },
-          onHover: handleHover,
+          onHover: handleWardHover,
           onClick: (info: PickingInfo) => {
             if (info.object) onSelectWard(info.object.properties as WardProperties);
             if (info.coordinate) onMapClick(info.coordinate[0], info.coordinate[1]);
@@ -325,7 +241,7 @@ export default function HeatMap({
     }
 
     return out;
-  }, [cityKey, regularGrid, domains, showGrid, showDomains, showHotspots, hotspots, wardSimulations, selectedWard, handleHover, onSelectWard, onMapClick]);
+  }, [cityKey, displayGrid, domains, showGrid, showDomains, showHotspots, hotspots, wardSimulations, selectedWard, handleGridHover, handleWardHover, onSelectWard, onMapClick]);
 
   const vulnCls = (v: string) =>
     v === "CRITICAL" ? "text-red-400 font-bold" : v === "HIGH" ? "text-orange-400 font-bold" :
@@ -399,7 +315,8 @@ export default function HeatMap({
               <table className="mt-2 w-full text-left">
                 <tbody>
                   {([
-                    ["Observed LST",  `${selectedWard.avg_lst_c.toFixed(1)}°C`],
+                    ["Satellite LST",  `${selectedWard.avg_lst_c.toFixed(1)}°C`],
+                    ["Calibrated LST", `${(selectedWard.lst_calibrated_c ?? selectedWard.avg_lst_c).toFixed(1)}°C`],
                     ["Simulated LST", `${(wardSimulations[selectedWard.ward_id] ?? selectedWard.simulated_lst_c).toFixed(1)}°C`],
                     ["Heat Stress",   `${selectedWard.heat_stress_utci_c.toFixed(1)}°C UTCI`],
                     ["NDVI (Greenery)",  selectedWard.ndvi.toFixed(2)],
@@ -428,7 +345,8 @@ export default function HeatMap({
                   <tbody>
                     {([
                       ["AI LST",       `${pointPrediction.predicted_lst_c.toFixed(1)}°C`],
-                      ["Observed LST", `${pointPrediction.observed_lst_c.toFixed(1)}°C`],
+                      ["Calibrated LST", `${(pointPrediction.observed_lst_calibrated_c ?? pointPrediction.observed_lst_c).toFixed(1)}°C`],
+                      ["Satellite LST", `${pointPrediction.observed_lst_c.toFixed(1)}°C`],
                       ["Hotspot Label", pointPrediction.hotspot_label],
                     ] as [string,string][]).map(([lbl, val]) => (
                       <tr key={lbl}>

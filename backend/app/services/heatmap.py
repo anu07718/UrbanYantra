@@ -16,6 +16,8 @@ import numpy as np
 import pandas as pd
 import rasterio
 
+from geography.ward_seeds import nearest_ward_name as _nearest_ward_name
+from features.display_pixels import visible_pixels
 from utils import load_city_config
 
 logger = logging.getLogger(__name__)
@@ -143,56 +145,66 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
     return png_bytes
 
 
-def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str, Any]:
+def build_fine_grid_geojson(
+    city_key: str, step: int | None = None, mask_water: bool = True
+) -> dict[str, Any]:
     """
     Pixel-aligned grid from pipeline feature table (10 m cells).
-    step=1 → full 120×120 resolution; larger step aggregates blocks.
+    step=1 → full resolution; larger step aggregates blocks.
     """
     cfg = load_city_config(ROOT / "configs" / "cities.yaml", city_key)
     df = _load_feature_table(city_key)
-    bbox = cfg["bbox"]
-    min_lon, min_lat, max_lon, max_lat = bbox
-    h = int(df["row"].max()) + 1
-    w = int(df["col"].max()) + 1
+    if mask_water:
+        df = visible_pixels(df)
+    h = int(df["row"].max()) + 1 if len(df) else 0
+    w = int(df["col"].max()) + 1 if len(df) else 0
 
     if step is None:
         step = DEFAULT_GRID_STEP
     step = max(1, int(step))
 
-    n_cells = (h // step) * (w // step)
+    n_cells = (h // step) * (w // step) if h and w else 0
     if n_cells > MAX_GRID_FEATURES:
         step = max(step, int(np.ceil(np.sqrt((h * w) / MAX_GRID_FEATURES))))
 
-    d_lon = (max_lon - min_lon) / w
-    d_lat = (max_lat - min_lat) / h
     features: list[dict[str, Any]] = []
 
+    lst_col = "lst_calibrated_c" if "lst_calibrated_c" in df.columns else "lst_c"
     grouped_df = df.assign(
         row_bin=(df["row"] // step) * step,
         col_bin=(df["col"] // step) * step,
         hotspot_flag=(df["hotspot_class"] >= 1).astype(float),
     )
-    aggregations = {
-        "lst_c": "mean",
-        "ndvi": "mean",
-        "ndbi": "mean",
-        "hotspot_flag": "mean",
-        "hotspot_class": "max",
+    agg_kwargs: dict[str, Any] = {
+        "lst_display": (lst_col, "mean"),
+        "lst_sat": ("lst_c", "mean"),
+        "ndvi": ("ndvi", "mean"),
+        "ndbi": ("ndbi", "mean"),
+        "hotspot_flag": ("hotspot_flag", "mean"),
+        "hotspot_class": ("hotspot_class", "max"),
+        "lon_min": ("lon", "min"),
+        "lon_max": ("lon", "max"),
+        "lat_min": ("lat", "min"),
+        "lat_max": ("lat", "max"),
     }
     if "humidity_proxy" in grouped_df.columns:
-        aggregations["humidity_proxy"] = "mean"
+        agg_kwargs["humidity_proxy"] = ("humidity_proxy", "mean")
     if "gi_star_z" in grouped_df.columns:
-        aggregations["gi_star_z"] = "mean"
+        agg_kwargs["gi_star_z"] = ("gi_star_z", "mean")
+    if "is_water" in grouped_df.columns:
+        agg_kwargs["is_water"] = ("is_water", "mean")
 
-    blocks = grouped_df.groupby(["row_bin", "col_bin"], sort=False).agg(aggregations).reset_index()
+    blocks = grouped_df.groupby(["row_bin", "col_bin"], sort=False).agg(**agg_kwargs).reset_index()
 
     for block in blocks.itertuples(index=False):
+        if mask_water and hasattr(block, "is_water") and float(block.is_water) > 0.5:
+            continue
+
         r0 = int(block.row_bin)
         c0 = int(block.col_bin)
-        r1 = min(r0 + step, h)
-        c1 = min(c0 + step, w)
 
-        avg_lst = float(np.nan_to_num(block.lst_c, nan=35.0))
+        avg_lst = float(np.nan_to_num(block.lst_display, nan=35.0))
+        avg_raw = float(np.nan_to_num(block.lst_sat, nan=avg_lst))
         avg_ndvi = float(np.nan_to_num(block.ndvi, nan=0.3))
         avg_ndbi = float(np.nan_to_num(block.ndbi, nan=0.1))
         hotspot_frac = float(np.nan_to_num(block.hotspot_flag, nan=0.0))
@@ -208,11 +220,13 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
         else:
             vuln = "LOW"
 
-        # Pixel corners in lon/lat (north-up raster)
-        w_min_lon = min_lon + c0 * d_lon
-        w_max_lon = min_lon + c1 * d_lon
-        w_max_lat = max_lat - r0 * d_lat
-        w_min_lat = max_lat - r1 * d_lat
+        w_min_lon = float(block.lon_min)
+        w_max_lon = float(block.lon_max)
+        w_min_lat = float(block.lat_min)
+        w_max_lat = float(block.lat_max)
+        centroid_lon = (w_min_lon + w_max_lon) / 2
+        centroid_lat = (w_min_lat + w_max_lat) / 2
+        area_name = _nearest_ward_name(cfg["city_name"], centroid_lon, centroid_lat, f"Cell {r0},{c0}")
 
         cell_id = f"{city_key}_r{r0}_c{c0}"
         polygon = [
@@ -229,11 +243,12 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
                 "geometry": {"type": "Polygon", "coordinates": [polygon]},
                 "properties": {
                     "ward_id": cell_id,
-                    "name": f"Cell {r0},{c0}",
+                    "name": area_name,
                     "row": r0,
                     "col": c0,
                     "grid_step": step,
-                    "avg_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
+                    "avg_lst_c": round(np.nan_to_num(avg_raw, nan=35.0), 2),
+                    "lst_calibrated_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
                     "simulated_lst_c": round(np.nan_to_num(avg_lst, nan=35.0), 2),
                     "heat_stress_utci_c": round(np.nan_to_num(utci, nan=35.0), 2),
                     "cooling_delta_c": 0.0,
@@ -250,13 +265,22 @@ def build_fine_grid_geojson(city_key: str, step: int | None = None) -> dict[str,
     return {
         "type": "FeatureCollection",
         "features": features,
-        "meta": {"grid_step": step, "rows": h, "cols": w, "cell_count": len(features)},
+        "meta": {
+            "grid_step": step,
+            "rows": h,
+            "cols": w,
+            "cell_count": len(features),
+            "mask_water": mask_water,
+            "resolution_m": cfg.get("target_resolution_m", 10) * step,
+        },
     }
 
 
-def build_sample_points_geojson(city_key: str, stride: int = 4) -> dict[str, Any]:
+def build_sample_points_geojson(city_key: str, stride: int = 4, mask_water: bool = True) -> dict[str, Any]:
     """Colored sample points for UHI-Analysis-style dot overlay."""
     df = _load_feature_table(city_key)
+    if mask_water:
+        df = visible_pixels(df)
     h = int(df["row"].max()) + 1
     w = int(df["col"].max()) + 1
     stride = max(1, stride)

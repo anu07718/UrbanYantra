@@ -14,6 +14,7 @@ from features.hotspot_detection import classify_hotspots_from_gi, getis_ord_gi_s
 from features.lcz_proxy import derive_lcz_proxy
 from features.morphology import compute_morphology_rasters
 from features.temporal import summarize_meteo_for_pixels
+from features.urban_mask import apply_urban_extent_mask
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +66,13 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
     table_path = out_dir / "tables" / "feature_table.parquet"
     lst_path = out_dir / "rasters" / "lst_10m.tif"
 
-    if table_path.exists() and lst_path.exists():
+    if table_path.exists() and lst_path.exists() and not config.get("force_refresh"):
         cached = pd.read_parquet(table_path)
         missing = [c for c in FEATURE_COLUMNS if c not in cached.columns]
+        if "is_water" not in cached.columns:
+            missing.append("is_water")
+        if "is_excluded" not in cached.columns:
+            missing.append("is_excluded")
         if not missing:
             return cached, lst_path
         logger.info("Rebuilding feature table — cached parquet missing: %s", missing)
@@ -122,14 +127,23 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
     lst_10m = downscale_lst(lst_coarse, ndvi, ndbi)
     save_geotiff(lst_10m, lst_path, config["bbox"])
 
+    import rasterio
+
+    with rasterio.open(lst_path) as src:
+        transform = src.transform
+
+    water_class = 80
     rows = []
     for r in range(h):
         for c in range(w):
+            lon, lat = rasterio.transform.xy(transform, r, c, offset="center")
+            is_water = int(lulc[r, c]) == water_class
             row = {
                 "row": r,
                 "col": c,
-                "lon": config["bbox"][0] + (c + 0.5) * (config["bbox"][2] - config["bbox"][0]) / w,
-                "lat": config["bbox"][3] - (r + 0.5) * (config["bbox"][3] - config["bbox"][1]) / h,
+                "lon": float(lon),
+                "lat": float(lat),
+                "is_water": is_water,
                 "lst_c": float(lst_10m[r, c]),
                 "ndvi": float(ndvi[r, c]),
                 "ndbi": float(ndbi[r, c]),
@@ -168,6 +182,8 @@ def build_feature_stack(config: dict, out_dir: Path) -> tuple[pd.DataFrame, Path
         + "_"
         + (df["lat"] // config["spatial_cv"]["tile_size_deg"]).astype(int).astype(str)
     )
+
+    df = apply_urban_extent_mask(df, config, out_dir)
 
     save_parquet(df, table_path)
     logger.info("Feature table: %d pixels, %d features", len(df), len(FEATURE_COLUMNS))

@@ -71,6 +71,7 @@ def predict_lst(city_key: str, lon: float, lat: float) -> dict[str, Any]:
     X = _row_features(row)
     predicted = float(reg.predict(X)[0])
     observed = float(row["lst_c"])
+    calibrated = float(row.get("lst_calibrated_c", observed))
     return {
         "city_key": city_key,
         "lon": float(lon),
@@ -78,6 +79,7 @@ def predict_lst(city_key: str, lon: float, lat: float) -> dict[str, Any]:
         "pixel_lon": float(row["lon"]),
         "pixel_lat": float(row["lat"]),
         "observed_lst_c": round(observed, 2),
+        "observed_lst_calibrated_c": round(calibrated, 2),
         "predicted_lst_c": round(predicted, 2),
         "residual_c": round(observed - predicted, 2),
         "model": "xgb_lst_regressor",
@@ -125,6 +127,7 @@ def predict_point(city_key: str, lon: float, lat: float) -> dict[str, Any]:
         "pixel_lon": lst["pixel_lon"],
         "pixel_lat": lst["pixel_lat"],
         "observed_lst_c": lst["observed_lst_c"],
+        "observed_lst_calibrated_c": lst.get("observed_lst_calibrated_c", lst["observed_lst_c"]),
         "predicted_lst_c": lst["predicted_lst_c"],
         "residual_c": lst["residual_c"],
         "observed_hotspot_class": hotspot["observed_hotspot_class"],

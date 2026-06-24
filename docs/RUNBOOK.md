@@ -24,12 +24,22 @@ py run_pipeline.py --config configs/pilot_city.yaml
 | 6 Scenarios | `simulation/scenarios.py` | ΔT maps, rankings CSV |
 | 7 Export | `outputs/export_maps.py` | Hotspot PNG, HTML |
 
-## GEE mode
+## GEE mode (Landsat 8 ST_B10 LST)
 
 1. `pip install earthengine-api`
-2. `earthengine authenticate`
-3. Set GEE project in env or edit `gee_client.py`
-4. `py run_pipeline.py --config configs/pilot_city.yaml --data-mode gee`
+2. One-time auth (opens browser):
+   ```bash
+   earthengine authenticate
+   ```
+3. Project ID is set in `configs/cities.yaml` → `gee_project: western-avatar-491910-s2`
+   (or set env `GEE_PROJECT=western-avatar-491910-s2`)
+4. Re-fetch real satellite data and rebuild the dashboard cache:
+   ```bash
+   py run_pipeline.py --city Mumbai --data-mode gee --force
+   ```
+5. Restart the API (`uvicorn backend.app.main:app --reload`) so it serves the new `outputs/mumbai/` tables.
+
+Landsat collection: `LANDSAT/LC08/C02/T1_L2`, band `ST_B10`, scaled to °C via USGS C2 factors in config.
 
 ## Fallback
 

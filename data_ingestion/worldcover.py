@@ -34,7 +34,7 @@ def generate_synthetic_lulc(shape: tuple[int, int] = (120, 120)) -> np.ndarray:
 def ingest_worldcover(config: dict, out_dir: Path) -> Path:
     out_path = out_dir / "rasters" / "worldcover.tif"
     expected_shape = synthetic_grid_shape(config) if config.get("data_mode", "synthetic") == "synthetic" else None
-    if out_path.exists():
+    if out_path.exists() and not config.get("force_refresh"):
         if expected_shape is None:
             return out_path
         with rasterio.open(out_path) as src:
@@ -49,7 +49,7 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
             import ee
             import requests
 
-            if not init_gee():
+            if not init_gee(config=config):
                 raise RuntimeError("GEE not available")
             wc = (
                 ee.ImageCollection(config["worldcover"]["collection"])

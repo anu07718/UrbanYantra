@@ -31,7 +31,7 @@ def generate_synthetic_s2_bands(config: dict, shape: tuple[int, int] = (120, 120
 def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, Path]:
     import ee
 
-    if not init_gee():
+    if not init_gee(config=config):
         raise RuntimeError("GEE not available")
 
     bbox = config["bbox"]
@@ -74,7 +74,7 @@ def ingest_sentinel2_indices(config: dict, out_dir: Path) -> dict[str, Path]:
     raster_dir.mkdir(parents=True, exist_ok=True)
     index_names = ["ndvi", "ndbi", "ndwi", "utfvi"]
     existing = {n: raster_dir / f"{n}.tif" for n in index_names}
-    if all(p.exists() for p in existing.values()):
+    if all(p.exists() for p in existing.values()) and not config.get("force_refresh"):
         return existing
 
     mode = config.get("data_mode", "synthetic")

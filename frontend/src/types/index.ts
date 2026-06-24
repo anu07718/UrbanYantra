@@ -1,6 +1,7 @@
 export interface CityInfo {
   city_key: string;
   city_name: string;
+  state?: string;
   has_data: boolean;
   avg_lst_c: number | null;
 }
@@ -10,6 +11,13 @@ export interface CitySummary {
   city_name: string;
   bbox: number[];
   data_mode: string;
+  grid_resolution_m?: number;
+  ward_boundaries?: string;
+  calibration?: {
+    bias_c: number;
+    method: string;
+    station_count: number;
+  };
   metrics: {
     avg_city_lst_c: number;
     avg_heat_stress_utci_c: number;
@@ -30,6 +38,8 @@ export interface WardProperties {
   ndbi: number;
   vulnerability_class: string;
   hotspot_fraction: number;
+  lst_calibrated_c?: number;
+  boundary_source?: string;
 }
 
 export interface WardFeature {
@@ -131,6 +141,7 @@ export interface PointPrediction {
   pixel_lon: number;
   pixel_lat: number;
   observed_lst_c: number;
+  observed_lst_calibrated_c?: number;
   predicted_lst_c: number;
   residual_c: number;
   observed_hotspot_class: number;

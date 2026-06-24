@@ -1,5 +1,12 @@
-// API base URL pointing to the FastAPI backend
-export const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+// API base URL — local dev uses :8000; Vercel services mount backend at /api
+function resolveApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_BASE) return process.env.NEXT_PUBLIC_API_BASE;
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  if (process.env.NODE_ENV === "development") return "http://localhost:8000";
+  return "/api";
+}
+
+export const apiBase = resolveApiBase();
 
 // Cities
 export async function getCities() {

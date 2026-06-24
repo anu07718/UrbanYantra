@@ -3,11 +3,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
+// Monorepo root — must match Vercel's outputFileTracingRoot (see build warning)
+const repoRoot = path.join(frontendRoot, "..");
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: repoRoot,
   turbopack: {
-    // Pin project root — avoids picking up C:\Users\Admin\package-lock.json
-    root: frontendRoot,
+    root: repoRoot,
   },
 };
 

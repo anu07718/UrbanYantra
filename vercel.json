@@ -10,8 +10,8 @@
       "entrypoint": "backend/app/main.py",
       "routePrefix": "/api",
       "framework": "fastapi",
-      "maxDuration": 60,
-      "memory": 1024,
+      "maxDuration": 120,
+      "memory": 3008,
       "includeFiles": [
         "configs/**",
         "geography/**",

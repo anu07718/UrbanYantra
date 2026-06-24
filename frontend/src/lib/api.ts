@@ -90,17 +90,38 @@ export async function runScenario(
 }
 
 // Chat
-export async function sendChat(cityKey: string, message: string) {
+export async function sendChat(
+  cityKey: string,
+  message: string,
+  history?: { role: string; content: string }[]
+) {
   const res = await fetch(`${apiBase}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       city_key: cityKey,
       message: message,
+      history: history ?? [],
     }),
   });
   if (!res.ok) throw new Error(`Failed to send chat: ${res.statusText}`);
   return res.json();
+}
+
+// Download PDF Report
+export async function downloadReport(cityKey: string) {
+  const res = await fetch(`${apiBase}/cities/${cityKey}/report`);
+  if (!res.ok) throw new Error(`Failed to generate report: ${res.statusText}`);
+  const blob = await res.blob();
+  const date = new Date().toISOString().slice(0, 10);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `UrbanCool_${cityKey}_${date}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // AIML model metrics
@@ -141,3 +162,4 @@ export async function getInterventions(cityKey: string, limit = 5) {
   if (!res.ok) throw new Error(`Failed to fetch interventions: ${res.statusText}`);
   return res.json();
 }
+

@@ -1,0 +1,855 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8695,
+          18.53875
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_49_69",
+        "lst_c": 39.83645248413086,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8655,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_65",
+        "lst_c": 39.67198944091797,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8695,
+          18.532083333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_57_69",
+        "lst_c": 39.66902160644531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8615,
+          18.533749999999998
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_55_61",
+        "lst_c": 39.667396545410156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8675,
+          18.534583333333334
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_54_67",
+        "lst_c": 39.64642333984375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.85849999999999,
+          18.530416666666667
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_59_58",
+        "lst_c": 39.56060028076172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8675,
+          18.539583333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_48_67",
+        "lst_c": 39.54559326171875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8655,
+          18.535416666666666
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_53_65",
+        "lst_c": 39.49147415161133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.53708333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_51_68",
+        "lst_c": 39.478553771972656,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.535416666666666
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_53_68",
+        "lst_c": 39.413326263427734,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8635,
+          18.532916666666665
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_56_63",
+        "lst_c": 39.384822845458984,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8665,
+          18.535416666666666
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_53_66",
+        "lst_c": 39.383262634277344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_68",
+        "lst_c": 39.380889892578125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8735,
+          18.540416666666665
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_47_73",
+        "lst_c": 39.379520416259766,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8675,
+          18.533749999999998
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_55_67",
+        "lst_c": 39.34925842285156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8605,
+          18.533749999999998
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_55_60",
+        "lst_c": 39.34105682373047,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8665,
+          18.53125
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_58_66",
+        "lst_c": 39.33733367919922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8715,
+          18.53125
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_58_71",
+        "lst_c": 39.322967529296875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8635,
+          18.534583333333334
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_54_63",
+        "lst_c": 39.32280731201172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8735,
+          18.532083333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_57_73",
+        "lst_c": 39.32097244262695,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.86449999999999,
+          18.537916666666664
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_50_64",
+        "lst_c": 39.31243896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.86449999999999,
+          18.53708333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_51_64",
+        "lst_c": 39.303401947021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.52958333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_60_68",
+        "lst_c": 39.297542572021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8745,
+          18.533749999999998
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_55_74",
+        "lst_c": 39.27657699584961,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8655,
+          18.53125
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_58_65",
+        "lst_c": 39.27302551269531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.86449999999999,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_64",
+        "lst_c": 39.26506805419922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8665,
+          18.530416666666667
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_59_66",
+        "lst_c": 39.264854431152344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.85849999999999,
+          18.535416666666666
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_53_58",
+        "lst_c": 39.24000549316406,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8745,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_74",
+        "lst_c": 39.208160400390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8735,
+          18.535416666666666
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_53_73",
+        "lst_c": 39.204132080078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8755,
+          18.532916666666665
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_56_75",
+        "lst_c": 39.192352294921875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8605,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_60",
+        "lst_c": 39.17835998535156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8615,
+          18.532083333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_57_61",
+        "lst_c": 39.17803955078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8715,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_71",
+        "lst_c": 39.17354202270508,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8755,
+          18.53625
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_52_75",
+        "lst_c": 39.16844940185547,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8655,
+          18.532083333333333
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_57_65",
+        "lst_c": 39.1663818359375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.53875
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_49_68",
+        "lst_c": 39.144962310791016,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8555,
+          18.530416666666667
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_59_55",
+        "lst_c": 39.13824462890625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8725,
+          18.524583333333332
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_66_72",
+        "lst_c": 39.120384216308594,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8665,
+          18.53875
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_49_66",
+        "lst_c": 39.119956970214844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.86449999999999,
+          18.53875
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_49_64",
+        "lst_c": 39.118896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8595,
+          18.532916666666665
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_56_59",
+        "lst_c": 39.11761474609375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8765,
+          18.537916666666664
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_50_76",
+        "lst_c": 39.11500930786133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8515,
+          18.52375
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_67_51",
+        "lst_c": 39.110504150390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.87049999999999,
+          18.532916666666665
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_56_70",
+        "lst_c": 39.1075553894043,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8675,
+          18.537916666666664
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_50_67",
+        "lst_c": 39.107505798339844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8745,
+          18.530416666666667
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_59_74",
+        "lst_c": 39.09783935546875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8665,
+          18.534583333333334
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_54_66",
+        "lst_c": 39.09585952758789,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8685,
+          18.530416666666667
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_59_68",
+        "lst_c": 39.09562683105469,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          73.8655,
+          18.534583333333334
+        ]
+      },
+      "properties": {
+        "city": "Pune",
+        "hotspot_id": "Pune_54_65",
+        "lst_c": 39.09040832519531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    }
+  ]
+}

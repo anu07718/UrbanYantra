@@ -1,0 +1,855 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64533333333333,
+          13.01625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_49_69",
+        "lst_c": 39.83645248413086,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63466666666666,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_65",
+        "lst_c": 39.67198944091797,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64533333333333,
+          12.99625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_57_69",
+        "lst_c": 39.66902160644531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.624,
+          13.00125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_55_61",
+        "lst_c": 39.667396545410156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64,
+          13.00375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_54_67",
+        "lst_c": 39.64642333984375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.616,
+          12.99125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_59_58",
+        "lst_c": 39.56060028076172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64,
+          13.01875
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_48_67",
+        "lst_c": 39.54559326171875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63466666666666,
+          13.00625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_53_65",
+        "lst_c": 39.49147415161133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          13.01125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_51_68",
+        "lst_c": 39.478553771972656,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          13.00625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_53_68",
+        "lst_c": 39.413326263427734,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.62933333333334,
+          12.998750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_56_63",
+        "lst_c": 39.384822845458984,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63733333333333,
+          13.00625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_53_66",
+        "lst_c": 39.383262634277344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_68",
+        "lst_c": 39.380889892578125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65599999999999,
+          13.02125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_47_73",
+        "lst_c": 39.379520416259766,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64,
+          13.00125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_55_67",
+        "lst_c": 39.34925842285156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.62133333333333,
+          13.00125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_55_60",
+        "lst_c": 39.34105682373047,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63733333333333,
+          12.99375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_58_66",
+        "lst_c": 39.33733367919922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65066666666667,
+          12.99375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_58_71",
+        "lst_c": 39.322967529296875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.62933333333334,
+          13.00375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_54_63",
+        "lst_c": 39.32280731201172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65599999999999,
+          12.99625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_57_73",
+        "lst_c": 39.32097244262695,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63199999999999,
+          13.01375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_50_64",
+        "lst_c": 39.31243896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63199999999999,
+          13.01125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_51_64",
+        "lst_c": 39.303401947021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          12.98875
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_60_68",
+        "lst_c": 39.297542572021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65866666666666,
+          13.00125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_55_74",
+        "lst_c": 39.27657699584961,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63466666666666,
+          12.99375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_58_65",
+        "lst_c": 39.27302551269531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63199999999999,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_64",
+        "lst_c": 39.26506805419922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63733333333333,
+          12.99125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_59_66",
+        "lst_c": 39.264854431152344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.616,
+          13.00625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_53_58",
+        "lst_c": 39.24000549316406,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65866666666666,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_74",
+        "lst_c": 39.208160400390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65599999999999,
+          13.00625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_53_73",
+        "lst_c": 39.204132080078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.66133333333333,
+          12.998750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_56_75",
+        "lst_c": 39.192352294921875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.62133333333333,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_60",
+        "lst_c": 39.17835998535156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.624,
+          12.99625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_57_61",
+        "lst_c": 39.17803955078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65066666666667,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_71",
+        "lst_c": 39.17354202270508,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.66133333333333,
+          13.008750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_52_75",
+        "lst_c": 39.16844940185547,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63466666666666,
+          12.99625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_57_65",
+        "lst_c": 39.1663818359375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          13.01625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_49_68",
+        "lst_c": 39.144962310791016,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.608,
+          12.99125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_59_55",
+        "lst_c": 39.13824462890625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65333333333334,
+          12.97375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_66_72",
+        "lst_c": 39.120384216308594,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63733333333333,
+          13.01625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_49_66",
+        "lst_c": 39.119956970214844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63199999999999,
+          13.01625
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_49_64",
+        "lst_c": 39.118896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.61866666666667,
+          12.998750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_56_59",
+        "lst_c": 39.11761474609375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.664,
+          13.01375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_50_76",
+        "lst_c": 39.11500930786133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.59733333333332,
+          12.97125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_67_51",
+        "lst_c": 39.110504150390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.648,
+          12.998750000000001
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_56_70",
+        "lst_c": 39.1075553894043,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64,
+          13.01375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_50_67",
+        "lst_c": 39.107505798339844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.65866666666666,
+          12.99125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_59_74",
+        "lst_c": 39.09783935546875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63733333333333,
+          13.00375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_54_66",
+        "lst_c": 39.09585952758789,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.64266666666667,
+          12.99125
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_59_68",
+        "lst_c": 39.09562683105469,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.63466666666666,
+          13.00375
+        ]
+      },
+      "properties": {
+        "city": "Bengaluru",
+        "hotspot_id": "Bengaluru_54_65",
+        "lst_c": 39.09040832519531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    }
+  ]
+}

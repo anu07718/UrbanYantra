@@ -1,0 +1,37 @@
+{
+  "bias_c": -12.96,
+  "method": "cpcb_stations_air_minus_lst_mean",
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31",
+    "lst_months": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "stations": [
+    {
+      "name": "Anand Vihar",
+      "lon": 77.3163,
+      "lat": 28.6469,
+      "agency": "CPCB",
+      "air_temp_c": 28.35,
+      "lst_satellite_c": 42.91,
+      "delta_air_minus_lst_c": -14.55,
+      "air_source": "era5_land_gee"
+    },
+    {
+      "name": "RK Puram",
+      "lon": 77.1726,
+      "lat": 28.5649,
+      "agency": "CPCB",
+      "air_temp_c": 28.69,
+      "lst_satellite_c": 40.06,
+      "delta_air_minus_lst_c": -11.37,
+      "air_source": "era5_land_gee"
+    }
+  ],
+  "note": "LST_calibrated = LST_satellite + bias_c (aligns LST toward summer 2 m air reference)"
+}

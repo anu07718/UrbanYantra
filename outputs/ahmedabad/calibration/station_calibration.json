@@ -1,0 +1,37 @@
+{
+  "bias_c": -13.86,
+  "method": "cpcb_stations_air_minus_lst_mean",
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31",
+    "lst_months": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "stations": [
+    {
+      "name": "Maninagar",
+      "lon": 72.6012,
+      "lat": 22.9989,
+      "agency": "CPCB",
+      "air_temp_c": 30.88,
+      "lst_satellite_c": 45.45,
+      "delta_air_minus_lst_c": -14.57,
+      "air_source": "era5_land_gee"
+    },
+    {
+      "name": "Satellite",
+      "lon": 72.5286,
+      "lat": 23.0225,
+      "agency": "CPCB",
+      "air_temp_c": 30.96,
+      "lst_satellite_c": 44.11,
+      "delta_air_minus_lst_c": -13.15,
+      "air_source": "era5_land_gee"
+    }
+  ],
+  "note": "LST_calibrated = LST_satellite + bias_c (aligns LST toward summer 2 m air reference)"
+}

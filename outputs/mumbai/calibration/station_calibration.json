@@ -1,0 +1,37 @@
+{
+  "bias_c": -9.45,
+  "method": "cpcb_stations_air_minus_lst_mean",
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31",
+    "lst_months": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "stations": [
+    {
+      "name": "Bandra",
+      "lon": 72.8347,
+      "lat": 19.0544,
+      "agency": "CPCB",
+      "air_temp_c": 28.53,
+      "lst_satellite_c": 41.68,
+      "delta_air_minus_lst_c": -13.14,
+      "air_source": "era5_land_gee"
+    },
+    {
+      "name": "Colaba",
+      "lon": 72.8177,
+      "lat": 18.9067,
+      "agency": "CPCB",
+      "air_temp_c": 28.34,
+      "lst_satellite_c": 34.1,
+      "delta_air_minus_lst_c": -5.76,
+      "air_source": "era5_land_gee"
+    }
+  ],
+  "note": "LST_calibrated = LST_satellite + bias_c (aligns LST toward summer 2 m air reference)"
+}

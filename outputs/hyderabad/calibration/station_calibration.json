@@ -1,0 +1,37 @@
+{
+  "bias_c": -9.93,
+  "method": "cpcb_stations_air_minus_lst_mean",
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31",
+    "lst_months": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "stations": [
+    {
+      "name": "Zoo Park",
+      "lon": 78.448,
+      "lat": 17.353,
+      "agency": "CPCB",
+      "air_temp_c": 29.14,
+      "lst_satellite_c": 37.62,
+      "delta_air_minus_lst_c": -8.47,
+      "air_source": "era5_land_gee"
+    },
+    {
+      "name": "Sanathnagar",
+      "lon": 78.43,
+      "lat": 17.45,
+      "agency": "CPCB",
+      "air_temp_c": 28.92,
+      "lst_satellite_c": 40.31,
+      "delta_air_minus_lst_c": -11.39,
+      "air_source": "era5_land_gee"
+    }
+  ],
+  "note": "LST_calibrated = LST_satellite + bias_c (aligns LST toward summer 2 m air reference)"
+}

@@ -1,73 +1,92 @@
-# ==========================
-# Python
-# ==========================
-__pycache__/
-*.py[cod]
-*.pyd
-*.so
-
-# ==========================
-# Virtual environments
-# ==========================
-.venv/
-venv/
-env/
-ENV/
-
-# If you accidentally created a venv in the project root
-/Lib/
-/Scripts/
-/Include/
-/share/
-/pyvenv.cfg
-
-# ==========================
-# Jupyter
-# ==========================
-.ipynb_checkpoints/
-
-# ==========================
-# VS Code
-# ==========================
-.vscode/
-
-# ==========================
-# Pytest
-# ==========================
-.pytest_cache/
-.coverage
-htmlcov/
-
-# ==========================
-# Build
-# ==========================
-build/
-dist/
-*.egg-info/
-
-# ==========================
-# Environment variables
-# ==========================
-.env
-
-# ==========================
-# OS files
-# ==========================
-.DS_Store
-Thumbs.db
-
-# ==========================
-# Project outputs
-# ==========================
-outputs/*
-
-# BUT track Python source files
-!outputs/__init__.py
-!outputs/export_maps.py
-!outputs/.gitkeep
-
-# Also ignore large data everywhere else
-*.tif
-*.joblib
-cache/
-*.geojson
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+
+# ==========================
+# Virtual environments
+# ==========================
+.venv/
+venv/
+env/
+ENV/
+
+# If you accidentally created a venv in the project root
+/Lib/
+/Scripts/
+/Include/
+/share/
+/pyvenv.cfg
+
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
+
+# ==========================
+# VS Code
+# ==========================
+.vscode/
+
+# ==========================
+# Pytest
+# ==========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================
+# Build
+# ==========================
+build/
+dist/
+*.egg-info/
+
+# ==========================
+# Environment variables
+# ==========================
+.env
+
+# ==========================
+# OS files
+# ==========================
+.DS_Store
+Thumbs.db
+
+# ==========================
+# Project outputs
+# ==========================
+outputs/*
+!outputs/__init__.py
+!outputs/export_maps.py
+
+# API deploy bundle per city (Vercel frontend + Render backend, free tier)
+!outputs/*/
+outputs/*/*
+!outputs/*/tables/**
+!outputs/*/models/**
+!outputs/*/simulation/**
+!outputs/*/calibration/**
+!outputs/*/explainability/**
+!outputs/*/geojson/**
+!outputs/*/ranking/**
+!outputs/*/rasters/lst_10m.tif
+!outputs/*/rasters/ndvi.tif
+
+# Global binary ignores — exceptions below for deploy bundle only
+*.tif
+!outputs/*/rasters/lst_10m.tif
+!outputs/*/rasters/ndvi.tif
+
+*.joblib
+!outputs/*/models/*.joblib
+!outputs/*/simulation/surrogate_delta_t.joblib
+
+*.geojson
+!outputs/*/geojson/**
+
+cache/
+

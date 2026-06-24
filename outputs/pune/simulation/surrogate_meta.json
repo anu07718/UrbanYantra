@@ -1,0 +1,16 @@
+{
+  "feature_names": [
+    "canopy_pct",
+    "albedo_delta",
+    "water_pct"
+  ],
+  "intercept": 2.384185791015625e-07,
+  "coefficients": {
+    "canopy_pct": -1.7438693046569824,
+    "albedo_delta": -2.1000003814697266,
+    "water_pct": -29.9999942779541
+  },
+  "r2_train": 1.0,
+  "n_samples": 40,
+  "note": "TODO: source actual intervention costs from municipal data"
+}

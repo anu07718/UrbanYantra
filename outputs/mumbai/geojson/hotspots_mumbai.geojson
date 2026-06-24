@@ -1,0 +1,855 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88320833333333,
+          19.11325
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_49_69",
+        "lst_c": 39.83645248413086,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87554166666666,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_65",
+        "lst_c": 39.67198944091797,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88320833333333,
+          19.08791666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_57_69",
+        "lst_c": 39.66902160644531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867875,
+          19.09425
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_55_61",
+        "lst_c": 39.667396545410156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.879375,
+          19.097416666666668
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_54_67",
+        "lst_c": 39.64642333984375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862125,
+          19.081583333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_59_58",
+        "lst_c": 39.56060028076172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.879375,
+          19.116416666666666
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_48_67",
+        "lst_c": 39.54559326171875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87554166666666,
+          19.100583333333333
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_53_65",
+        "lst_c": 39.49147415161133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.106916666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_51_68",
+        "lst_c": 39.478553771972656,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.100583333333333
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_53_68",
+        "lst_c": 39.413326263427734,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87170833333333,
+          19.091083333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_56_63",
+        "lst_c": 39.384822845458984,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87745833333334,
+          19.100583333333333
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_53_66",
+        "lst_c": 39.383262634277344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_68",
+        "lst_c": 39.380889892578125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89087500000001,
+          19.119583333333335
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_47_73",
+        "lst_c": 39.379520416259766,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.879375,
+          19.09425
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_55_67",
+        "lst_c": 39.34925842285156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86595833333334,
+          19.09425
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_55_60",
+        "lst_c": 39.34105682373047,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87745833333334,
+          19.08475
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_58_66",
+        "lst_c": 39.33733367919922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88704166666668,
+          19.08475
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_58_71",
+        "lst_c": 39.322967529296875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87170833333333,
+          19.097416666666668
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_54_63",
+        "lst_c": 39.32280731201172,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89087500000001,
+          19.08791666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_57_73",
+        "lst_c": 39.32097244262695,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.873625,
+          19.110083333333332
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_50_64",
+        "lst_c": 39.31243896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.873625,
+          19.106916666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_51_64",
+        "lst_c": 39.303401947021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.078416666666666
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_60_68",
+        "lst_c": 39.297542572021484,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89279166666667,
+          19.09425
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_55_74",
+        "lst_c": 39.27657699584961,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87554166666666,
+          19.08475
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_58_65",
+        "lst_c": 39.27302551269531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.873625,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_64",
+        "lst_c": 39.26506805419922,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87745833333334,
+          19.081583333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_59_66",
+        "lst_c": 39.264854431152344,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862125,
+          19.100583333333333
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_53_58",
+        "lst_c": 39.24000549316406,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89279166666667,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_74",
+        "lst_c": 39.208160400390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89087500000001,
+          19.100583333333333
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_53_73",
+        "lst_c": 39.204132080078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89470833333334,
+          19.091083333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_56_75",
+        "lst_c": 39.192352294921875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86595833333334,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_60",
+        "lst_c": 39.17835998535156,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867875,
+          19.08791666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_57_61",
+        "lst_c": 39.17803955078125,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88704166666668,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_71",
+        "lst_c": 39.17354202270508,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89470833333334,
+          19.10375
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_52_75",
+        "lst_c": 39.16844940185547,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87554166666666,
+          19.08791666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_57_65",
+        "lst_c": 39.1663818359375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.11325
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_49_68",
+        "lst_c": 39.144962310791016,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856375,
+          19.081583333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_59_55",
+        "lst_c": 39.13824462890625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88895833333333,
+          19.059416666666667
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_66_72",
+        "lst_c": 39.120384216308594,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87745833333334,
+          19.11325
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_49_66",
+        "lst_c": 39.119956970214844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.873625,
+          19.11325
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_49_64",
+        "lst_c": 39.118896484375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86404166666667,
+          19.091083333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_56_59",
+        "lst_c": 39.11761474609375,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.896625,
+          19.110083333333332
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_50_76",
+        "lst_c": 39.11500930786133,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84870833333333,
+          19.05625
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_67_51",
+        "lst_c": 39.110504150390625,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.885125,
+          19.091083333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_56_70",
+        "lst_c": 39.1075553894043,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.879375,
+          19.110083333333332
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_50_67",
+        "lst_c": 39.107505798339844,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.89279166666667,
+          19.081583333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_59_74",
+        "lst_c": 39.09783935546875,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87745833333334,
+          19.097416666666668
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_54_66",
+        "lst_c": 39.09585952758789,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.88129166666667,
+          19.081583333333334
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_59_68",
+        "lst_c": 39.09562683105469,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87554166666666,
+          19.097416666666668
+        ]
+      },
+      "properties": {
+        "city": "Mumbai",
+        "hotspot_id": "Mumbai_54_65",
+        "lst_c": 39.09040832519531,
+        "hotspot_class": 0,
+        "gi_star_z": NaN
+      }
+    }
+  ]
+}

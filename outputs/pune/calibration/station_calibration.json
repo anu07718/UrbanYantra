@@ -1,0 +1,37 @@
+{
+  "bias_c": -18.405,
+  "method": "cpcb_stations_air_minus_lst_mean",
+  "date_range": {
+    "start": "2020-01-01",
+    "end": "2024-12-31",
+    "lst_months": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "stations": [
+    {
+      "name": "Karve Road",
+      "lon": 73.8077,
+      "lat": 18.5018,
+      "agency": "CPCB",
+      "air_temp_c": 27.44,
+      "lst_satellite_c": 44.52,
+      "delta_air_minus_lst_c": -17.08,
+      "air_source": "era5_land_gee"
+    },
+    {
+      "name": "Bhosari",
+      "lon": 73.848,
+      "lat": 18.64,
+      "agency": "CPCB",
+      "air_temp_c": 27.26,
+      "lst_satellite_c": 46.99,
+      "delta_air_minus_lst_c": -19.73,
+      "air_source": "era5_land_gee"
+    }
+  ],
+  "note": "LST_calibrated = LST_satellite + bias_c (aligns LST toward summer 2 m air reference)"
+}

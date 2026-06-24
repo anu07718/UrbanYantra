@@ -3,14 +3,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
-// Monorepo root — must match Vercel's outputFileTracingRoot (see build warning)
-const repoRoot = path.join(frontendRoot, "..");
 
-const nextConfig: NextConfig = {
-  outputFileTracingRoot: repoRoot,
-  turbopack: {
-    root: repoRoot,
-  },
-};
+const nextConfig: NextConfig = process.env.VERCEL
+  ? {}
+  : {
+      turbopack: {
+        // Local monorepo — avoid picking up a parent package-lock.json
+        root: frontendRoot,
+      },
+    };
 
 export default nextConfig;

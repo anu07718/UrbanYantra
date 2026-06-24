@@ -5,21 +5,6 @@
       "entrypoint": "frontend",
       "routePrefix": "/",
       "framework": "nextjs"
-    },
-    "backend": {
-      "entrypoint": "backend/app/main.py",
-      "routePrefix": "/api",
-      "framework": "fastapi",
-      "maxDuration": 120,
-      "memory": 3008,
-      "includeFiles": [
-        "configs/**",
-        "geography/**",
-        "features/**",
-        "simulation/**",
-        "utils.py",
-        "outputs/**"
-      ]
     }
   }
 }

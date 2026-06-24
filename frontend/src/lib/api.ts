@@ -1,9 +1,11 @@
-// API base URL — local dev uses :8000; Vercel services mount backend at /api
+// API base URL
+// - Local dev: localhost:8000
+// - Vercel prod: set NEXT_PUBLIC_API_BASE to your Render URL (e.g. https://urbancool-api.onrender.com)
 function resolveApiBase(): string {
-  if (process.env.NEXT_PUBLIC_API_BASE) return process.env.NEXT_PUBLIC_API_BASE;
-  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  const fromEnv = process.env.NEXT_PUBLIC_API_BASE || process.env.BACKEND_URL;
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
   if (process.env.NODE_ENV === "development") return "http://localhost:8000";
-  return "/api";
+  return "";
 }
 
 export const apiBase = resolveApiBase();

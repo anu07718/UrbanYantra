@@ -71,13 +71,16 @@ outputs/*/*
 !outputs/*/tables/feature_table.parquet
 !outputs/*/tables/era5_land_hourly.parquet
 !outputs/*/tables/osm_morphology.parquet
+!outputs/*/tables/intervention_rankings.csv
 !outputs/*/summary.json
 !outputs/*/models/**
+!outputs/*/models/benchmark_metrics.json
 !outputs/*/simulation/**
 !outputs/*/calibration/**
 !outputs/*/explainability/**
 !outputs/*/geojson/**
 !outputs/*/ranking/**
+!outputs/*/benchmarks/**
 !outputs/*/rasters/lst_10m.tif
 !outputs/*/rasters/ndvi.tif
 
@@ -96,4 +99,5 @@ outputs/*/*
 !outputs/*/geojson/**
 
 cache/
+data/cache/
 

@@ -86,6 +86,27 @@ export async function getDrivers(cityKey: string) {
   return res.json();
 }
 
+// Dataset audit: real vs synthetic, Drive/cache/bundled usage
+export async function getDataAudit(cityKey: string) {
+  const res = await fetch(`${apiBase}/cities/${cityKey}/data-audit`);
+  if (!res.ok) throw new Error(`Failed to fetch data audit for ${cityKey}: ${res.statusText}`);
+  return res.json();
+}
+
+// D-07 Kaggle + D-09 EY benchmark summaries
+export async function getBenchmarks(cityKey: string) {
+  const res = await fetch(`${apiBase}/cities/${cityKey}/benchmarks`);
+  if (!res.ok) throw new Error(`Failed to fetch benchmarks for ${cityKey}: ${res.statusText}`);
+  return res.json();
+}
+
+// Hackathon USP metrics: green cooling, carbon, planning priority
+export async function getUspMetrics(cityKey: string) {
+  const res = await fetch(`${apiBase}/cities/${cityKey}/usp`);
+  if (!res.ok) throw new Error(`Failed to fetch USP metrics for ${cityKey}: ${res.statusText}`);
+  return res.json();
+}
+
 // Cooling potential
 export async function getCoolingPotential(cityKey: string) {
   const res = await fetch(`${apiBase}/cities/${cityKey}/cooling-potential`);
@@ -193,7 +214,7 @@ export async function getHotspots(cityKey: string) {
 }
 
 // Intervention rankings (Phase 2)
-export async function getInterventions(cityKey: string, limit = 5) {
+export async function getInterventions(cityKey: string, limit = 15) {
   const res = await fetch(`${apiBase}/cities/${cityKey}/interventions?limit=${limit}`);
   if (!res.ok) throw new Error(`Failed to fetch interventions: ${res.statusText}`);
   return res.json();

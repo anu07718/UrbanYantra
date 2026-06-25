@@ -22,9 +22,12 @@ if str(ROOT) not in sys.path:
 import pandas as pd
 
 from data_ingestion import run_ingestion
+from data_ingestion.cache import save_parquet
 from explainability.shap_analysis import run_shap_analysis
 from features.build_feature_table import build_feature_stack
+from features.usp_metrics import attach_usp_columns
 from models.leave_one_city_out import leave_one_city_out_cv
+from models.benchmark_eval import run_benchmark_eval
 from models.train_baseline import train_baselines
 from outputs.export_maps import export_outputs
 from pipeline.accuracy import run_accuracy_layer
@@ -42,10 +45,13 @@ def run_single_city(config: dict, skip_shap: bool = False) -> pd.DataFrame:
 
     run_ingestion(config)
     df, _ = build_feature_stack(config, out_dir)
+    df = attach_usp_columns(df, config)
+    save_parquet(df, out_dir / "tables" / "feature_table.parquet")
     city_key = config.get("city_key", config.get("city_name", "city").replace(" ", "_"))
     df = run_accuracy_layer(config, df, out_dir, city_key)
     result = train_baselines(config, df, out_dir)
     df = result["df"]
+    run_benchmark_eval(config, result["metrics"], out_dir)
 
     if not skip_shap:
         run_shap_analysis(config, df, result["xgb_reg"], out_dir)
@@ -67,7 +73,7 @@ def main() -> int:
         default=["Mumbai", "Pune", "Delhi_NCR", "Bengaluru", "Hyderabad", "Chennai", "Kolkata"],
         help="City keys for --multi-city",
     )
-    parser.add_argument("--data-mode", choices=["synthetic", "gee"], help="Override data_mode")
+    parser.add_argument("--data-mode", choices=["synthetic", "gee", "local"], help="Override data_mode")
     parser.add_argument("--force", action="store_true", help="Re-fetch GEE rasters (ignore cache)")
     parser.add_argument("--skip-shap", action="store_true", help="Skip SHAP (faster)")
     args = parser.parse_args()

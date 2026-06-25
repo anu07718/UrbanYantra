@@ -1,4 +1,4 @@
-"""Sentinel-2 surface reflectance and spectral indices via GEE."""
+"""Sentinel-2 surface reflectance and spectral indices via GEE (+ Landsat SR fallback)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,15 @@ from pathlib import Path
 import numpy as np
 
 from data_ingestion.cache import save_geotiff
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source, use_gee_for_satellite
 from data_ingestion.gee_client import get_study_region, init_gee
+from data_ingestion.gee_export import compute_gee_export_scale, download_gee_image, read_bands_from_geotiff
 from features.spectral_indices import compute_indices_from_bands
-from data_ingestion.data_provenance import is_real_data_mode, require_real_source
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
+
+S2_BANDS = ["B2", "B3", "B4", "B8", "B11"]
 
 
 def generate_synthetic_s2_bands(config: dict, shape: tuple[int, int] = (120, 120)) -> dict[str, np.ndarray]:
@@ -29,7 +32,19 @@ def generate_synthetic_s2_bands(config: dict, shape: tuple[int, int] = (120, 120
     return {"B2": blue.astype(np.float32), "B3": green.astype(np.float32), "B4": green * 0.9, "B8": nir, "B11": swir}
 
 
-def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, Path]:
+def _summer_filter(collection, config: dict):
+    """Restrict to clear-sky summer months (matches Landsat LST window)."""
+    months = config.get("date_range", {}).get("lst_months")
+    if not months:
+        return collection
+    import ee
+
+    filters = [ee.Filter.calendarRange(int(m), int(m), "month") for m in months]
+    return collection.filter(ee.Filter.Or(filters))
+
+
+def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, np.ndarray]:
+    """Fetch S2 median composite as band arrays (single multi-band GeoTIFF export)."""
     import ee
 
     if not init_gee(config=config):
@@ -38,42 +53,81 @@ def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, Path]:
     bbox = config["bbox"]
     region = get_study_region(bbox)
     s2_cfg = config["sentinel2"]
-    res_m = config.get("target_resolution_m", 10)
-    export_scale = max(int(res_m), 30)
+    scale = compute_gee_export_scale(bbox)
 
     def mask_clouds(img):
         qa = img.select("QA60")
         mask = qa.bitwiseAnd(1 << 10).eq(0).And(qa.bitwiseAnd(1 << 11).eq(0))
-        return img.updateMask(mask).divide(10000)
+        return img.updateMask(mask).divide(10000).copyProperties(img, ["system:time_start"])
 
     collection = (
         ee.ImageCollection(s2_cfg["collection"])
         .filterBounds(region)
         .filterDate(config["date_range"]["start"], config["date_range"]["end"])
-        .map(mask_clouds)
     )
-    composite = collection.median().clip(region)
-    bands = ["B2", "B3", "B4", "B8", "B11"]
-    # GEE getDownloadURL pixel cap — export at ≥30 m, resampled in feature stack
-    export_scale = max(int(config.get("target_resolution_m", 10)), 30)
-    paths = {}
-    for band in bands:
-        url = composite.select(band).getDownloadURL(
-            {"scale": export_scale, "crs": config.get("crs", "EPSG:4326"), "region": region, "format": "GEO_TIFF"}
+    collection = _summer_filter(collection, config)
+    collection = collection.map(mask_clouds)
+    count = collection.size().getInfo()
+    if count == 0:
+        logger.warning("S2 collection empty with cloud mask — retrying without QA mask")
+        collection = (
+            ee.ImageCollection(s2_cfg["collection"])
+            .filterBounds(region)
+            .filterDate(config["date_range"]["start"], config["date_range"]["end"])
         )
-        import requests
+        collection = _summer_filter(collection, config)
+        collection = collection.map(lambda img: img.divide(10000).copyProperties(img, ["system:time_start"]))
+        count = collection.size().getInfo()
+    if count == 0:
+        raise ValueError("No Sentinel-2 scenes for bbox/date range")
 
-        resp = requests.get(url, timeout=300)
-        resp.raise_for_status()
-        p = out_dir / "rasters" / f"s2_{band.lower()}.tif"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(resp.content)
-        paths[band] = p
-    return paths
+    logger.info("Sentinel-2 scenes in composite: %d", count)
+    composite = collection.median().clip(region)
+
+    out_tif = out_dir / "rasters" / "s2_composite.tif"
+    download_gee_image(composite, S2_BANDS, region, bbox, out_tif, config, scale=scale)
+    band_map = {b: i + 1 for i, b in enumerate(S2_BANDS)}
+    return read_bands_from_geotiff(out_tif, band_map)
+
+
+def fetch_landsat_sr_bands_gee(config: dict, out_dir: Path) -> dict[str, np.ndarray]:
+    """Fallback: Landsat 8 C2 L2 surface reflectance → S2-compatible band names."""
+    import ee
+
+    if not init_gee(config=config):
+        raise RuntimeError("GEE not available")
+
+    bbox = config["bbox"]
+    region = get_study_region(bbox)
+    ls_cfg = config["landsat"]
+    scale = compute_gee_export_scale(bbox)
+
+    collection = (
+        ee.ImageCollection(ls_cfg["collection"])
+        .filterBounds(region)
+        .filterDate(config["date_range"]["start"], config["date_range"]["end"])
+        .filter(ee.Filter.lt("CLOUD_COVER", ls_cfg.get("cloud_cover_max", 30)))
+    )
+    collection = _summer_filter(collection, config)
+
+    def prep_sr(img):
+        sr = img.select(["SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6"]).multiply(0.0000275).add(-0.2)
+        return sr.clamp(0, 1).rename(["B2", "B3", "B4", "B8", "B11"])
+
+    count = collection.size().getInfo()
+    if count == 0:
+        raise ValueError("No Landsat SR scenes for fallback")
+    logger.info("Landsat SR fallback — %d scenes", count)
+    composite = collection.map(prep_sr).median().clip(region)
+
+    out_tif = out_dir / "rasters" / "landsat_sr_composite.tif"
+    download_gee_image(composite, ["B2", "B3", "B4", "B8", "B11"], region, bbox, out_tif, config, scale=scale)
+    band_map = {b: i + 1 for i, b in enumerate(["B2", "B3", "B4", "B8", "B11"])}
+    return read_bands_from_geotiff(out_tif, band_map)
 
 
 def ingest_sentinel2_indices(config: dict, out_dir: Path) -> dict[str, Path]:
-    """Ingest S2 and export NDVI, NDBI, NDWI, UTFVI rasters."""
+    """Ingest S2 (or Landsat SR fallback) and export NDVI, NDBI, NDWI, UTFVI rasters."""
     raster_dir = out_dir / "rasters"
     raster_dir.mkdir(parents=True, exist_ok=True)
     index_names = ["ndvi", "ndbi", "ndwi", "utfvi"]
@@ -81,22 +135,19 @@ def ingest_sentinel2_indices(config: dict, out_dir: Path) -> dict[str, Path]:
     if all(p.exists() for p in existing.values()) and not config.get("force_refresh"):
         return existing
 
-    mode = config.get("data_mode", "synthetic")
     bands = None
-    if mode == "gee":
+    if use_gee_for_satellite(config):
         try:
-            band_paths = fetch_sentinel2_gee(config, out_dir)
-            import rasterio
-
-            bands = {}
-            for b, p in band_paths.items():
-                with rasterio.open(p) as src:
-                    bands[b] = src.read(1).astype(np.float32)
+            bands = fetch_sentinel2_gee(config, out_dir)
         except Exception as exc:
-            require_real_source(config, "Sentinel-2", exc)
+            logger.warning("Sentinel-2 GEE export failed (%s) — trying Landsat SR fallback", exc)
+            try:
+                bands = fetch_landsat_sr_bands_gee(config, out_dir)
+            except Exception as exc2:
+                require_real_source(config, "Sentinel-2 / Landsat SR", exc2)
 
-    if is_real_data_mode(config):
-        raise RuntimeError("Sentinel-2 unavailable in gee mode")
+    if is_real_data_mode(config) and bands is None:
+        raise RuntimeError(f"Spectral indices unavailable (data_mode={config.get('data_mode')})")
 
     if bands is None:
         bands = generate_synthetic_s2_bands(config, shape=synthetic_grid_shape(config))

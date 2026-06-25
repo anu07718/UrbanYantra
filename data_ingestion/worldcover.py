@@ -10,7 +10,7 @@ import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
-from data_ingestion.data_provenance import is_real_data_mode, require_real_source
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source, use_gee_for_satellite
 from utils import grid_shape_from_bbox, synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
         out_path.unlink(missing_ok=True)
 
     mode = config.get("data_mode", "synthetic")
-    if mode == "gee":
+    if use_gee_for_satellite(config):
         try:
             import ee
             import requests
@@ -79,7 +79,7 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
             require_real_source(config, "ESA WorldCover", exc)
 
     if is_real_data_mode(config):
-        raise RuntimeError("WorldCover unavailable in gee mode")
+        raise RuntimeError(f"WorldCover unavailable (data_mode={mode})")
 
     lulc = generate_synthetic_lulc(synthetic_grid_shape(config))
     save_geotiff(lulc.astype(np.float32), out_path, config["bbox"], nodata=0)

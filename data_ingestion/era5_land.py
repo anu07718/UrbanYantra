@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 
 from data_ingestion.cache import save_parquet
-from data_ingestion.data_provenance import is_real_data_mode, require_real_source
+from data_ingestion.data_provenance import is_local_data_mode, is_real_data_mode, prefer_local_files, require_real_source
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +205,17 @@ def ingest_era5_land(config: dict, out_dir: Path) -> Path:
     out_path = out_dir / "tables" / "era5_land_hourly.parquet"
     if out_path.exists() and not config.get("force_refresh"):
         return out_path
+
+    # D-03 local UTCI NetCDF (Copernicus CDS download)
+    if is_local_data_mode(config) or prefer_local_files(config):
+        try:
+            from data_ingestion.era5_utci_local import ingest_era5_utci_local
+
+            return ingest_era5_utci_local(config, out_dir)
+        except FileNotFoundError as exc:
+            if is_local_data_mode(config):
+                raise
+            logger.warning("Local UTCI not configured (%s) — using GEE/Open-Meteo.", exc)
 
     if is_real_data_mode(config):
         try:

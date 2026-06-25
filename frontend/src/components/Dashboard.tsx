@@ -11,29 +11,37 @@ import {
   getCitySummary,
   getClimate,
   getCoolingPotential,
+  getBenchmarks,
+  getDataAudit,
   getDomains,
   getDrivers,
   getHeatmapMeta,
   getHotspots,
+  getInterventions,
   getModelMetrics,
   getSamplePoints,
+  getUspMetrics,
   getWards,
   predictPoint,
   runScenario,
 } from "@/lib/api";
 import type {
+  BenchmarkSummary,
   CityInfo,
   CitySummary,
   ClimatePoint,
   CoolingStrategy,
+  DataAudit,
   Driver,
   HeatmapMeta,
   HotspotCollection,
+  InterventionRanking,
   MapLayer,
   ModelMetrics,
   PointPrediction,
   SamplePointCollection,
   SimulationState,
+  UspMetrics,
   WardCollection,
   WardProperties,
 } from "@/types";
@@ -49,6 +57,13 @@ const DEFAULT_SIM: SimulationState = {
   targetWard: "Full City",
 };
 
+function dataStatusClass(status: string) {
+  if (["real", "cached_real", "bundled_real"].includes(status)) return "text-emerald-300";
+  if (status === "synthetic") return "text-red-300";
+  if (status === "fallback") return "text-amber-300";
+  return "text-slate-500";
+}
+
 export default function Dashboard() {
   const [cities, setCities] = useState<CityInfo[]>([]);
   const [cityKey, setCityKey] = useState("");
@@ -59,7 +74,12 @@ export default function Dashboard() {
   const [heatmapMeta, setHeatmapMeta] = useState<HeatmapMeta | null>(null);
   const [samplePoints, setSamplePoints] = useState<SamplePointCollection | null>(null);
   const [hotspots, setHotspots] = useState<HotspotCollection | null>(null);
+  const [interventions, setInterventions] = useState<InterventionRanking[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [dataAudit, setDataAudit] = useState<DataAudit | null>(null);
+  const [benchmarks, setBenchmarks] = useState<BenchmarkSummary | null>(null);
+  const [uspMetrics, setUspMetrics] = useState<UspMetrics | null>(null);
+  const [showDataDetails, setShowDataDetails] = useState(false);
   const [cooling, setCooling] = useState<CoolingStrategy[]>([]);
   const [climate, setClimate] = useState<ClimatePoint[]>([]);
   const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null);
@@ -97,8 +117,13 @@ export default function Dashboard() {
     setFineGrid(null);
     setHeatmapMeta(null);
     setSamplePoints(null);
+    setHotspots(null);
+    setInterventions([]);
     setSelectedWard(null);
     setModelMetrics(null);
+    setDataAudit(null);
+    setBenchmarks(null);
+    setUspMetrics(null);
     setPointPrediction(null);
 
     const results = await Promise.allSettled([
@@ -112,6 +137,10 @@ export default function Dashboard() {
       getSamplePoints(key, 2),    // 7
       getModelMetrics(key),       // 8
       getHotspots(key),           // 9
+      getDataAudit(key),          // 10
+      getBenchmarks(key),         // 11
+      getUspMetrics(key),         // 12
+      getInterventions(key, 15),  // 13
     ]);
 
     const val = <T,>(i: number): T | null =>
@@ -140,6 +169,10 @@ export default function Dashboard() {
     setSamplePoints(val<SamplePointCollection>(7));
     setModelMetrics(val<ModelMetrics>(8));
     setHotspots(val<HotspotCollection>(9));
+    setDataAudit(val<DataAudit>(10));
+    setBenchmarks(val<BenchmarkSummary>(11));
+    setUspMetrics(val<UspMetrics>(12));
+    setInterventions(val<InterventionRanking[]>(13) ?? []);
 
     const firstDomain = dom?.features[0]?.properties;
     setSim((prev) => ({
@@ -353,11 +386,179 @@ export default function Dashboard() {
           cooling={cooling}
           drivers={drivers}
           climate={climate}
+          interventions={interventions}
           dataMode={summary?.data_mode}
+          summary={summary}
+          onOpenDataDetails={() => setShowDataDetails(true)}
         />
       </div>
 
       {summary && <AIChat cityKey={cityKey} cityName={summary.city_name} />}
+
+      {showDataDetails && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-8 backdrop-blur-md">
+          <div className="w-full max-w-5xl rounded-2xl border border-slate-700/70 bg-[#111827]/95 p-5 text-slate-100 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 pb-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-300">UrbanCool Data Details</p>
+                <h2 className="mt-1 text-xl font-bold text-white">{summary?.city_name ?? "City"} real-data pipeline</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
+                  These datasets are not just stored in cache — they feed the map layers, hotspot model, driver analysis,
+                  intervention rankings, and judge-facing benchmark evidence.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDataDetails(false)}
+                className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-bold text-slate-200 transition-colors hover:bg-slate-700 hover:text-white"
+                aria-label="Close data details"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+              <section className="rounded-xl border border-cyan-700/40 bg-cyan-950/15 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white">Dataset Usage Audit</h3>
+                  {dataAudit && (
+                    <span className={`text-[10px] font-bold uppercase ${dataAudit.synthetic_used ? "text-red-300" : "text-emerald-300"}`}>
+                      {dataAudit.synthetic_used ? "Synthetic present" : "No synthetic in selected city"}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {(dataAudit?.datasets ?? []).map((item) => (
+                    <div key={item.dataset_id} className="rounded-lg border border-slate-700/50 bg-slate-900/55 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-xs font-semibold text-slate-100">
+                          {item.dataset_id} · {item.name}
+                        </p>
+                        <span className={`shrink-0 text-[10px] font-mono ${dataStatusClass(item.status)}`}>
+                          {item.status.replace("_", " ")}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                        <span className="font-semibold text-cyan-300">Used for: </span>
+                        {item.used_for}
+                      </p>
+                      <p className="mt-1 truncate text-[9px] text-slate-500" title={item.source}>
+                        {item.source}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-4">
+                <h3 className="text-sm font-semibold text-white">Map + Model Value</h3>
+                <div className="mt-3 space-y-2 text-xs text-slate-300">
+                  <div className="rounded-lg bg-slate-900/50 p-3">
+                    <p className="font-semibold text-emerald-300">Map layers</p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Landsat LST drives the thermal/surface-temperature layers; WorldCover masks water; GHSL + OSM shape building density and planning risk.
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-slate-900/50 p-3">
+                    <p className="font-semibold text-emerald-300">Heat-stress scoring</p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      ERA5 UTCI cache supplies meteorological context, converted into air-temperature, humidity, wind, solar, and heatwave features.
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-slate-900/50 p-3">
+                    <p className="font-semibold text-emerald-300">AIML + planning</p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      The model learns from LST, NDVI/NDBI, GHSL morphology, OSM morphology, and meteo features; USP scores rank where interventions matter most.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              {uspMetrics && (
+                <section className="rounded-xl border border-lime-700/40 bg-lime-950/15 p-4">
+                  <h3 className="text-sm font-semibold text-white">Hackathon USP Metrics</h3>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-slate-900/55 p-3">
+                      <div className="text-slate-500">Green ΔT</div>
+                      <div className="mt-1 font-mono text-lg text-lime-300">{uspMetrics.tree_green_cooling.avg_potential_c.toFixed(2)}°C</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/55 p-3">
+                      <div className="text-slate-500">CO₂ saved</div>
+                      <div className="mt-1 font-mono text-lg text-lime-300">{uspMetrics.carbon_mitigation.co2_tons_yr.toFixed(1)}t/yr</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/55 p-3">
+                      <div className="text-slate-500">High priority</div>
+                      <div className="mt-1 font-mono text-lg text-lime-300">{uspMetrics.urban_planning.high_priority_pixel_pct.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-lg bg-slate-900/45 p-3">
+                    <p className="text-xs font-semibold text-slate-200">Top intervention zones</p>
+                    <div className="mt-2 space-y-1">
+                      {uspMetrics.urban_planning.top_zones.slice(0, 5).map((zone, index) => (
+                        <div key={`${zone.lon}-${zone.lat}-${index}`} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="truncate text-slate-400">{zone.name}</span>
+                          <span className="font-mono text-lime-300">priority {zone.planning_priority.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {benchmarks && (
+                <section className="rounded-xl border border-violet-700/40 bg-violet-950/15 p-4">
+                  <h3 className="text-sm font-semibold text-white">External Benchmarks</h3>
+                  <div className="mt-3 space-y-2">
+                    {benchmarks.kaggle_uhi && (
+                      <div className="rounded-lg bg-slate-900/55 p-3">
+                        <div className="flex justify-between gap-2 text-xs">
+                          <span className="font-semibold text-slate-100">D-07 Kaggle UHI Monitoring</span>
+                          <span className="font-mono text-violet-300">{benchmarks.kaggle_uhi.rows} rows</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Used as a compact real tabular benchmark for EDA and baseline modeling narrative.
+                        </p>
+                      </div>
+                    )}
+                    {benchmarks.ey_uhi && (
+                      <div className="rounded-lg bg-slate-900/55 p-3">
+                        <div className="flex justify-between gap-2 text-xs">
+                          <span className="font-semibold text-slate-100">D-09 EY NYC UHI Ground Truth</span>
+                          <span className="font-mono text-violet-300">{benchmarks.ey_uhi.rows} labels</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          External validation with labeled UHI Index — trained in pipeline as spatial baseline.
+                        </p>
+                      </div>
+                    )}
+                    {benchmarks.training_pipeline?.external_baselines && (
+                      <div className="rounded-lg bg-slate-900/55 p-3 text-[11px]">
+                        <p className="font-semibold text-violet-200">Pipeline benchmark training</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-violet-300">
+                          {benchmarks.training_pipeline.external_baselines.kaggle_uhi && (
+                            <div>
+                              Kaggle MAE{" "}
+                              {benchmarks.training_pipeline.external_baselines.kaggle_uhi.mae_c?.toFixed(2)}°C
+                            </div>
+                          )}
+                          {benchmarks.training_pipeline.external_baselines.ey_uhi && (
+                            <div>
+                              EY MAE{" "}
+                              {benchmarks.training_pipeline.external_baselines.ey_uhi.mae?.toFixed(4)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

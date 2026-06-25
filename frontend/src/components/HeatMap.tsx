@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import DeckGL from "@deck.gl/react";
-import { GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { GeoJsonLayer, IconLayer } from "@deck.gl/layers";
 import type { PickingInfo, MapViewState } from "@deck.gl/core";
 import type { FeatureCollection, Polygon } from "geojson";
 import Map, { Source, Layer as MapLayerGL } from "react-map-gl/maplibre";
@@ -10,6 +10,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { getThermalOverlayMeta, thermalOverlayUrl } from "@/lib/api";
 import type {
   HeatmapMeta,
+  HotspotFeature,
   HotspotCollection,
   MapLayer,
   PointPrediction,
@@ -117,6 +118,27 @@ const LAYER_RAMPS: Record<MapLayer, ColorStop[]> = {
     { at: 0.65, rgb: [128, 50, 180] },
     { at: 1,    rgb: [75, 0, 130] },
   ],
+  ghsl_built: [
+    { at: 0,    rgb: [255, 245, 235] },
+    { at: 0.25, rgb: [253, 174, 97] },
+    { at: 0.55, rgb: [230, 85, 13] },
+    { at: 0.8,  rgb: [178, 24, 43] },
+    { at: 1,    rgb: [103, 0, 31] },
+  ],
+  ghsl_population: [
+    { at: 0,    rgb: [255, 255, 204] },
+    { at: 0.3,  rgb: [254, 217, 118] },
+    { at: 0.55, rgb: [252, 141, 89] },
+    { at: 0.75, rgb: [227, 74, 51] },
+    { at: 1,    rgb: [128, 0, 38] },
+  ],
+  ghsl_smod: [
+    { at: 0,    rgb: [247, 252, 240] },
+    { at: 0.25, rgb: [189, 201, 225] },
+    { at: 0.5,  rgb: [116, 169, 207] },
+    { at: 0.75, rgb: [43, 140, 190] },
+    { at: 1,    rgb: [8, 48, 107] },
+  ],
   vulnerability: [
     { at: 0,    rgb: [0, 200, 83] },
     { at: 0.35, rgb: [255, 214, 0] },
@@ -188,6 +210,36 @@ const LAYER_CONFIG: Record<MapLayer, {
     tooltipLabel: "Built-up",
     defaultBounds: [0, 0.8],
   },
+  ghsl_built: {
+    legendTitle: "GHSL Built-up Surface",
+    heightNote: "Height ∝ built-up density (GHSL Built-S)",
+    unit: "",
+    ramp: LAYER_RAMPS.ghsl_built,
+    getValue: (p) => p.ghsl_built ?? p.building_density ?? p.impervious_frac ?? Math.max(0, 1 - p.ndvi),
+    formatValue: (v) => `${(Math.min(1, Math.max(0, v)) * 100).toFixed(0)}%`,
+    tooltipLabel: "GHSL Built-up",
+    defaultBounds: [0, 1],
+  },
+  ghsl_population: {
+    legendTitle: "GHSL Population",
+    heightNote: "Height ∝ population exposure (GHSL)",
+    unit: "",
+    ramp: LAYER_RAMPS.ghsl_population,
+    getValue: (p) => p.population ?? 0,
+    formatValue: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)),
+    tooltipLabel: "Population",
+    defaultBounds: [0, 500],
+  },
+  ghsl_smod: {
+    legendTitle: "GHSL Settlement (SMOD)",
+    heightNote: "Height ∝ urban settlement degree",
+    unit: "",
+    ramp: LAYER_RAMPS.ghsl_smod,
+    getValue: (p) => (p.ghsl_smod != null ? Math.min(1, p.ghsl_smod / 30) : 0),
+    formatValue: (v) => (v >= 0.66 ? "Urban core" : v >= 0.33 ? "Suburban" : "Rural/open"),
+    tooltipLabel: "SMOD",
+    defaultBounds: [0, 1],
+  },
   vulnerability: {
     legendTitle: "Risk Level",
     heightNote: "Height ∝ risk score",
@@ -215,6 +267,9 @@ function valueElevation(value: number, vmin: number, vmax: number, layer: MapLay
   if (layer === "lst" || layer === "utci") {
     return Math.max(80, t * 2200);
   }
+  if (layer === "ghsl_built" || layer === "ghsl_population" || layer === "ghsl_smod") {
+    return Math.max(80, t * 1600);
+  }
   return Math.max(80, t * 1400);
 }
 
@@ -232,6 +287,9 @@ const LAYER_LABELS: { id: MapLayer; label: string; tip: string }[] = [
   { id: "utci",          label: "Heat Stress on People",  tip: "How uncomfortable the heat feels to a person outdoors." },
   { id: "ndvi",          label: "Green Coverage",         tip: "How much vegetation (trees, grass) is in each area. Higher = cooler." },
   { id: "svf",           label: "Building Density",       tip: "How densely built the area is. Dense areas trap more heat." },
+  { id: "ghsl_built",    label: "GHSL Built-up",          tip: "Real GHSL Built-S surface density — urban exposure & planning context." },
+  { id: "ghsl_population", label: "GHSL Population",    tip: "Real GHSL population per cell — vulnerability & exposure to heat." },
+  { id: "ghsl_smod",       label: "GHSL Settlement",    tip: "GHSL SMOD settlement degree — urban core vs suburban vs rural context." },
   { id: "vulnerability", label: "Risk Level",             tip: "Combined heat risk score — red areas need urgent intervention." },
 ];
 
@@ -285,12 +343,14 @@ export default function HeatMap({
   const isThermalMode = layer === "thermal";
   const [showGrid,      setShowGrid]      = useState(true);
   const [showDomains,   setShowDomains]   = useState(true);
-  const [showHotspots,  setShowHotspots]  = useState(false);
+  const [showHotspots,  setShowHotspots]  = useState(true);
   const [pitch,       setPitch]       = useState(45);
   const [bearing,     setBearing]     = useState(-15);
   const [thermalOverlay, setThermalOverlay] = useState<ThermalOverlayMeta | null>(null);
   const [thermalLoading, setThermalLoading] = useState(false);
   const [thermalError, setThermalError] = useState<string | null>(null);
+  const [selectedHotspot, setSelectedHotspot] = useState<HotspotFeature | null>(null);
+  const [pinIconReady, setPinIconReady] = useState(false);
   const [viewState,   setViewState]   = useState<MapViewState>(() => ({
     longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
     latitude:  bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
@@ -390,6 +450,18 @@ export default function HeatMap({
       setShowDomains(false);
     }
   }, [isThermalMode, cityKey, applyPitch, applyBearing]);
+
+  useEffect(() => {
+    if (hotspots?.features?.length) setShowHotspots(true);
+  }, [hotspots]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => setPinIconReady(true);
+    img.onerror = () => setPinIconReady(false);
+    img.src = "/hotspot-pin.svg";
+  }, []);
 
   /* recenter when city changes */
   const centeredView = useMemo<MapViewState>(() => {
@@ -514,30 +586,41 @@ export default function HeatMap({
       );
     }
 
-    /* ── Hotspot scatter layer ───────────────────────────────────────── */
-    if (showHotspots && hotspots && hotspots.features.length > 0) {
+    /* ── Hotspot map-pin layer (always on top of 3-D grid) ─────────── */
+    if (showHotspots && hotspots && pinIconReady && hotspots.features.length > 0) {
+      const pinData = hotspots.features.filter((f) => f.properties.hotspot_class >= 1);
       out.push(
-        new ScatterplotLayer({
+        new IconLayer<HotspotFeature>({
           id:              `hotspots-${cityKey}`,
-          data:            hotspots.features,
-          getPosition:     (f) => f.geometry.coordinates as [number, number],
-          getRadius:       80,
-          radiusMinPixels: 5,
-          radiusMaxPixels: 18,
-          getFillColor:    (f) =>
+          data:            pinData.length ? pinData : hotspots.features,
+          getPosition:     (f) => f.geometry.coordinates,
+          getIcon:         () => ({
+            url: "/hotspot-pin.svg",
+            width: 48,
+            height: 64,
+            anchorY: 64,
+            mask: true,
+          }),
+          getSize:         (f) => (f.properties.hotspot_class >= 2 ? 46 : 38),
+          sizeUnits:       "pixels",
+          getColor:        (f) =>
             f.properties.hotspot_class >= 2
-              ? [255, 23, 68, 220]
-              : [255, 140, 0, 180],
-          getLineColor:    [255, 255, 255, 160],
-          stroked:         true,
-          lineWidthMinPixels: 1,
-          pickable:        false,
+              ? [255, 23, 68, 255]
+              : [255, 166, 0, 255],
+          billboard:       true,
+          pickable:        true,
+          parameters:      { depthTest: false },
+          onClick:         (info: PickingInfo<HotspotFeature>) => {
+            if (!info.object) return;
+            setSelectedHotspot(info.object);
+            onMapClick(info.object.geometry.coordinates[0], info.object.geometry.coordinates[1]);
+          },
         })
       );
     }
 
     return out;
-  }, [cityKey, layer, layerConfig, cellValue, vmin, vmax, displayGrid, domains, showGrid, isThermalMode, showDomains, showHotspots, hotspots, wardSimulations, selectedWard, handleGridHover, handleWardHover, onSelectWard, onMapClick]);
+  }, [cityKey, layer, layerConfig, cellValue, vmin, vmax, displayGrid, domains, showGrid, isThermalMode, showDomains, showHotspots, hotspots, pinIconReady, wardSimulations, selectedWard, handleGridHover, handleWardHover, onSelectWard, onMapClick]);
 
   const vulnCls = (v: string) =>
     v === "CRITICAL" ? "text-red-400 font-bold" : v === "HIGH" ? "text-orange-400 font-bold" :
@@ -756,6 +839,57 @@ export default function HeatMap({
       )}
 
       {/* ── DeckGL canvas ─────────────────────────────────────────────── */}
+      {selectedHotspot && (
+        <div className="absolute bottom-3 right-3 z-20 w-72 rounded-xl border border-red-500/40 bg-slate-950/95 p-3 text-xs text-slate-200 shadow-2xl backdrop-blur-md">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-red-300">Heat Hotspot Pin</p>
+              <p className="mt-0.5 text-sm font-bold text-white">
+                {selectedHotspot.properties.hotspot_label ??
+                  (selectedHotspot.properties.hotspot_class >= 2 ? "Severe hotspot" : "Moderate hotspot")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedHotspot(null)}
+              className="rounded bg-slate-800 px-2 py-0.5 text-slate-400 hover:text-white"
+              aria-label="Close hotspot details"
+            >
+              ×
+            </button>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+            <div className="rounded bg-slate-900/70 p-2">
+              <span className="block text-slate-500">Satellite LST</span>
+              <span className="font-mono text-red-300">{selectedHotspot.properties.lst_c.toFixed(1)}°C</span>
+            </div>
+            <div className="rounded bg-slate-900/70 p-2">
+              <span className="block text-slate-500">Hotspot class</span>
+              <span className="font-mono text-red-300">{selectedHotspot.properties.hotspot_class}</span>
+            </div>
+            {selectedHotspot.properties.gi_star_z != null && (
+              <div className="rounded bg-slate-900/70 p-2">
+                <span className="block text-slate-500">Gi* z-score</span>
+                <span className="font-mono text-red-300">{selectedHotspot.properties.gi_star_z.toFixed(2)}</span>
+              </div>
+            )}
+            {selectedHotspot.properties.population != null && selectedHotspot.properties.population > 0 && (
+              <div className="rounded bg-slate-900/70 p-2">
+                <span className="block text-slate-500">GHSL pop.</span>
+                <span className="font-mono text-red-300">
+                  {selectedHotspot.properties.population >= 1000
+                    ? `${(selectedHotspot.properties.population / 1000).toFixed(1)}k`
+                    : selectedHotspot.properties.population.toFixed(0)}
+                </span>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+            This pin marks a high-temperature pixel detected from the real satellite LST hotspot layer. Click nearby map cells for AIML prediction and residual details.
+          </p>
+        </div>
+      )}
+
       <DeckGL
         key={`${cityKey}-${layer}`}
         initialViewState={centeredView}

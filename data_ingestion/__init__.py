@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from data_ingestion.era5_land import ingest_era5_land
+from data_ingestion.benchmark_datasets import export_benchmark_summaries
 from data_ingestion.ghsl import ingest_ghsl
 from data_ingestion.landsat_lst import ingest_landsat_lst
 from data_ingestion.osm_morphology import fetch_osm_morphology
@@ -28,6 +29,7 @@ def run_ingestion(config: dict) -> dict:
         "era5_land": ingest_era5_land(config, out_dir),
         # After Sentinel-2 / WorldCover so morphology matches the satellite grid
         "osm_morphology": fetch_osm_morphology(config, out_dir),
+        "benchmarks": export_benchmark_summaries(config, out_dir),
     }
     logger.info("Ingestion complete.")
     return artifacts

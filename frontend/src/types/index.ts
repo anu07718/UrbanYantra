@@ -42,6 +42,10 @@ export interface WardProperties {
   vulnerability_class: string;
   hotspot_fraction: number;
   impervious_frac?: number;
+  building_density?: number;
+  population?: number;
+  ghsl_built?: number;
+  ghsl_smod?: number;
   lst_calibrated_c?: number;
   boundary_source?: string;
   hotspot_class?: number;
@@ -119,6 +123,74 @@ export interface Driver {
   importance_pct: number;
 }
 
+export interface DataAuditItem {
+  dataset_id: string;
+  name: string;
+  status: string;
+  source: string;
+  used_for: string;
+  is_real: boolean;
+}
+
+export interface DataAudit {
+  city_key: string;
+  data_mode: string;
+  synthetic_used: boolean;
+  datasets: DataAuditItem[];
+}
+
+export interface BenchmarkSummary {
+  kaggle_uhi?: {
+    rows: number;
+    columns?: string[];
+    temperature_mean_c?: number | null;
+    land_cover_classes?: number | null;
+    source: string;
+    note?: string;
+  };
+  ey_uhi?: {
+    rows: number;
+    uhi_index_mean?: number | null;
+    uhi_index_std?: number | null;
+    lon_range?: number[] | null;
+    lat_range?: number[] | null;
+    source: string;
+    note?: string;
+  };
+  training_pipeline?: {
+    city_metrics?: Record<string, number>;
+    external_baselines?: {
+      kaggle_uhi?: { mae_c?: number; r2?: number; rows?: number };
+      ey_uhi?: { mae?: number; r2?: number; rows?: number };
+    };
+  };
+}
+
+export interface UspMetrics {
+  tree_green_cooling: {
+    avg_potential_c: number;
+    max_potential_c: number;
+    description: string;
+  };
+  carbon_mitigation: {
+    co2_tons_yr: number;
+    description: string;
+  };
+  urban_planning: {
+    avg_priority: number;
+    high_priority_pixel_pct: number;
+    top_zones: {
+      name: string;
+      lon: number;
+      lat: number;
+      planning_priority: number;
+      lst_c: number;
+      ndvi: number;
+    }[];
+    description: string;
+  };
+}
+
 export interface CoolingStrategy {
   strategy: string;
   delta_t_c: number;
@@ -139,7 +211,7 @@ export interface ScenarioResult {
   ward_updates: { ward_id: string; simulated_lst_c: number; cooling_delta_c: number }[];
 }
 
-export type MapLayer = "lst" | "thermal" | "utci" | "ndvi" | "svf" | "vulnerability";
+export type MapLayer = "lst" | "thermal" | "utci" | "ndvi" | "svf" | "ghsl_built" | "ghsl_population" | "ghsl_smod" | "vulnerability";
 
 export interface SimulationState {
   coolRoofs: number;
@@ -188,11 +260,35 @@ export interface PointPrediction {
 export interface HotspotFeature {
   type: "Feature";
   geometry: { type: "Point"; coordinates: [number, number] };
-  properties: { hotspot_id: string; lst_c: number; hotspot_class: number };
+  properties: {
+    hotspot_id: string;
+    lst_c: number;
+    hotspot_class: number;
+    hotspot_label?: string;
+    gi_star_z?: number;
+    ndvi?: number;
+    population?: number;
+  };
 }
 
 export interface HotspotCollection {
   type: "FeatureCollection";
   features: HotspotFeature[];
+}
+
+export interface InterventionRanking {
+  rank: number;
+  intervention_type: string;
+  intervention_description?: string;
+  lon: number;
+  lat: number;
+  estimated_temp_reduction_c: number;
+  cost_effectiveness_score?: number;
+  implementation_complexity?: string;
+  confidence?: string;
+  baseline_lst_c?: number;
+  post_lst_c?: number;
+  target_row?: number;
+  target_col?: number;
 }
 

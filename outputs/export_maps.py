@@ -23,6 +23,8 @@ def export_outputs(config: dict, df: pd.DataFrame, out_dir: Path) -> None:
     city_key = config.get("city_key", "unknown")
     city_name = config.get("city_name", city_key)
     data_mode = config.get("data_mode", "unknown")
+    is_real_mode = data_mode in {"gee", "local"}
+    uses_local_cache = data_mode == "local" or bool((config.get("local_data") or {}).get("prefer_local_over_gee"))
 
     logger.info("Exporting outputs for %s to %s", city_name, out_dir)
 
@@ -48,13 +50,13 @@ def export_outputs(config: dict, df: pd.DataFrame, out_dir: Path) -> None:
         "city_key": city_key,
         "city_name": city_name,
         "data_mode": data_mode,
-        "is_real_data": data_mode == "gee",
+        "is_real_data": is_real_mode,
         "data_sources": {
             "landsat_lst": "Google Earth Engine — Landsat 8 Collection 2 L2 ST_B10",
             "sentinel2": "Google Earth Engine — Sentinel-2 SR harmonized (NDVI/NDBI/NDWI/UTFVI)",
             "worldcover": "Google Earth Engine — ESA WorldCover v200",
-            "ghsl": "Google Earth Engine — JRC GHSL building height & population",
-            "era5_meteo": "ERA5-Land reanalysis (GEE or Open-Meteo archive)",
+            "ghsl": "Google Drive/cache — GHSL Built-S + SMOD tiles" if uses_local_cache else "Google Earth Engine — JRC GHSL building height & population",
+            "era5_meteo": "Google Drive/cache — ERA5 UTCI NetCDF" if uses_local_cache else "ERA5-Land reanalysis (GEE or Open-Meteo archive)",
             "osm_morphology": "OpenStreetMap buildings/roads (or WorldCover impervious fallback)",
             "station_calibration": "CPCB/IMD station coords + Open-Meteo/GEE air temperature",
             "ward_boundaries": "OpenStreetMap admin polygons + Voronoi seeds",

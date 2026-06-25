@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import os
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -23,9 +25,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_cors_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+_extra = os.environ.get("CORS_ALLOW_ORIGINS", "")
+if _extra:
+    _cors_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_cors_origins,
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
@@ -199,6 +209,36 @@ def city_drivers(city_key: str):
         raise HTTPException(500, str(e)) from e
 
 
+@app.get("/cities/{city_key}/data-audit")
+def city_data_audit(city_key: str):
+    try:
+        return city_data.get_data_audit(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/benchmarks")
+def city_benchmarks(city_key: str):
+    try:
+        return city_data.get_benchmark_summary(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/usp")
+def city_usp(city_key: str):
+    try:
+        return city_data.get_usp_metrics(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
 @app.get("/cities/{city_key}/cooling-potential")
 def cooling_potential(city_key: str):
     try:
@@ -298,13 +338,9 @@ def ranking(city_key: str, limit: int = 30):
 
 @app.get("/cities/{city_key}/interventions")
 def interventions(city_key: str, limit: int = 30):
-    """Return cooling intervention rankings for the city.
-
-    This mirrors the existing /ranking endpoint but follows the newer
-    /cities/{city_key}/interventions naming convention used by the UI.
-    """
+    """Return ranked cooling intervention zones (pixel-level rankings CSV/JSON)."""
     try:
-        return city_data.get_cooling_potential(city_key)[:limit]
+        return city_data.get_ranking(city_key, limit=limit)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:

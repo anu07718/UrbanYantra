@@ -13,6 +13,7 @@ import pandas as pd
 
 from geography.ward_seeds import WARD_COORDINATES, nearest_ward_name as _nearest_ward_name
 from features.display_pixels import visible_pixels
+from features.usp_metrics import attach_usp_columns
 from simulation.fit_surrogate import predict_surrogate
 from utils import list_city_keys, load_city_config
 
@@ -169,7 +170,12 @@ def _load_feature_table(city_key: str) -> pd.DataFrame:
     path = _city_out_dir(city_key) / "tables" / "feature_table.parquet"
     if not path.exists():
         raise FileNotFoundError(f"No pipeline output for {city_key}. Run: py run_pipeline.py --city {city_key}")
-    return pd.read_parquet(path)
+    df = pd.read_parquet(path)
+    required = {"green_cooling_potential_c", "co2_mitigation_tons_yr", "planning_priority"}
+    if not required.issubset(df.columns):
+        cfg = load_city_config(CITIES_YAML, city_key)
+        df = attach_usp_columns(df, cfg)
+    return df
 
 
 def _approx_utci(lst_c: float, humidity: float = 0.55) -> float:
@@ -222,8 +228,169 @@ def get_city_summary(city_key: str) -> dict[str, Any]:
             "avg_city_lst_c": round(land_lst, 1),
             "avg_heat_stress_utci_c": round(_approx_utci(land_lst, humidity), 1),
             "resilience_index": _resilience_index(df),
-            "co2_sequestration_tons_yr": 0.0,
+            "co2_sequestration_tons_yr": round(float(df.get("co2_mitigation_tons_yr", pd.Series([0.0])).mean()), 1),
             "total_investment_m_usd": 0.0,
+        },
+    }
+
+
+def get_data_audit(city_key: str) -> dict[str, Any]:
+    """Judge-facing audit: which PS1 datasets are real, cached, or synthetic."""
+    cfg = load_city_config(CITIES_YAML, city_key)
+    out = _city_out_dir(city_key)
+    provenance = _load_city_provenance(city_key)
+    artifacts = provenance.get("artifacts_present", {})
+    sources = provenance.get("data_sources", {})
+    data_mode = provenance.get("data_mode", cfg.get("data_mode", "gee"))
+    benchmarks = get_benchmark_summary(city_key)
+
+    def row(dataset_id: str, name: str, status: str, source: str, use: str) -> dict[str, Any]:
+        return {
+            "dataset_id": dataset_id,
+            "name": name,
+            "status": status,
+            "source": source,
+            "used_for": use,
+            "is_real": status in {"real", "cached_real", "bundled_real"},
+        }
+
+    rows = [
+        row(
+            "D-01",
+            "Landsat 8 Collection 2 LST",
+            "real" if artifacts.get("landsat_lst") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            sources.get("landsat_lst", "GEE Landsat 8 ST_B10"),
+            "Surface temperature, hotspots, model target",
+        ),
+        row(
+            "D-03",
+            "ERA5 / ERA5-Land / UTCI",
+            "cached_real" if artifacts.get("era5_meteo") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            sources.get("era5_meteo", "Drive/cache UTCI NetCDF or GEE ERA5-Land"),
+            "Heat stress, humidity, wind, solar drivers",
+        ),
+        row(
+            "D-04",
+            "GHSL Built-S / SMOD",
+            "cached_real" if artifacts.get("ghsl") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            sources.get("ghsl", "Drive/cache GHSL tiles or GEE JRC GHSL"),
+            "Building density, population, LCZ/urban morphology",
+        ),
+        row(
+            "D-05",
+            "ESA WorldCover",
+            "real" if artifacts.get("worldcover") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            sources.get("worldcover", "GEE ESA WorldCover"),
+            "Water/vegetation/urban masks",
+        ),
+        row(
+            "D-06",
+            "OpenStreetMap morphology",
+            "real" if artifacts.get("osm_morphology") else ("fallback" if out.exists() else "missing"),
+            sources.get("osm_morphology", "OSM buildings/roads or impervious fallback"),
+            "Road density, built form, ward boundaries",
+        ),
+        row(
+            "D-07",
+            "Kaggle UHI Monitoring Dataset",
+            "bundled_real" if benchmarks.get("kaggle_uhi", {}).get("rows") else "missing",
+            benchmarks.get("kaggle_uhi", {}).get("source", "data/benchmarks/urban_heat_island_dataset.csv"),
+            "Baseline ML/EDA benchmark card",
+        ),
+        row(
+            "D-09",
+            "EY 2025 NYC UHI Ground Truth",
+            "bundled_real" if benchmarks.get("ey_uhi", {}).get("rows") else "missing",
+            benchmarks.get("ey_uhi", {}).get("source", "data/benchmarks/Training_data_uhi_index_2025-02-18.csv"),
+            "External validation narrative with labeled UHI",
+        ),
+    ]
+    return {
+        "city_key": city_key,
+        "data_mode": data_mode,
+        "synthetic_used": any(item["status"] == "synthetic" for item in rows),
+        "datasets": rows,
+    }
+
+
+def get_benchmark_summary(city_key: str) -> dict[str, Any]:
+    """D-07 + D-09 benchmark summaries, using output manifest or bundled CSVs."""
+    bench_dir = _city_out_dir(city_key) / "benchmarks"
+    manifest = bench_dir / "benchmark_manifest.json"
+    if manifest.exists():
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    else:
+        data = {}
+
+    bundled_dir = ROOT / "data" / "benchmarks"
+    kaggle_csv = bundled_dir / "urban_heat_island_dataset.csv"
+    if "kaggle_uhi" not in data and kaggle_csv.exists():
+        kaggle = pd.read_csv(kaggle_csv)
+        temp_col = next((c for c in kaggle.columns if "temperature" in c.lower()), None)
+        data["kaggle_uhi"] = {
+            "rows": int(len(kaggle)),
+            "columns": list(kaggle.columns),
+            "temperature_mean_c": round(float(kaggle[temp_col].mean()), 2) if temp_col else None,
+            "land_cover_classes": int(kaggle["Land Cover"].nunique()) if "Land Cover" in kaggle.columns else None,
+            "source": "D-07 Kaggle UHI Monitoring Dataset",
+            "note": "Bundled real tabular benchmark for EDA/baseline ML, not Indian geospatial ground truth",
+        }
+
+    ey_csv = bundled_dir / "Training_data_uhi_index_2025-02-18.csv"
+    if "ey_uhi" not in data and ey_csv.exists():
+        ey = pd.read_csv(ey_csv)
+        ey.columns = [c.strip() for c in ey.columns]
+        if "UHI Index" in ey.columns:
+            ey = ey.rename(columns={"UHI Index": "uhi_index", "Longitude": "lon", "Latitude": "lat"})
+        data["ey_uhi"] = {
+            "rows": int(len(ey)),
+            "uhi_index_mean": round(float(ey["uhi_index"].mean()), 4) if "uhi_index" in ey.columns else None,
+            "uhi_index_std": round(float(ey["uhi_index"].std()), 4) if "uhi_index" in ey.columns else None,
+            "lon_range": [float(ey["lon"].min()), float(ey["lon"].max())] if "lon" in ey.columns else None,
+            "lat_range": [float(ey["lat"].min()), float(ey["lat"].max())] if "lat" in ey.columns else None,
+            "source": "D-09 EY Open Science Challenge 2025 (NYC ground truth)",
+            "note": "External validation reference with labeled UHI Index",
+        }
+
+    bench_metrics = _city_out_dir(city_key) / "models" / "benchmark_metrics.json"
+    if bench_metrics.exists():
+        data["training_pipeline"] = json.loads(bench_metrics.read_text(encoding="utf-8"))
+    return data
+
+
+def get_usp_metrics(city_key: str) -> dict[str, Any]:
+    """Tree/green cooling, carbon co-benefit, and planning-priority USP metrics."""
+    df = visible_pixels(_load_feature_table(city_key))
+    if df.empty:
+        df = _load_feature_table(city_key)
+    top = df.nlargest(5, "planning_priority")
+    zones = []
+    for _, row_data in top.iterrows():
+        zones.append(
+            {
+                "name": _nearest_ward_name(load_city_config(CITIES_YAML, city_key)["city_name"], float(row_data["lon"]), float(row_data["lat"])),
+                "lon": float(row_data["lon"]),
+                "lat": float(row_data["lat"]),
+                "planning_priority": round(float(row_data["planning_priority"]), 1),
+                "lst_c": round(float(row_data["lst_c"]), 1),
+                "ndvi": round(float(row_data["ndvi"]), 2),
+            }
+        )
+    return {
+        "tree_green_cooling": {
+            "avg_potential_c": round(float(df["green_cooling_potential_c"].mean()), 2),
+            "max_potential_c": round(float(df["green_cooling_potential_c"].max()), 2),
+            "description": "Estimated cooling from evapotranspiration + canopy shade over low-NDVI hot pixels",
+        },
+        "carbon_mitigation": {
+            "co2_tons_yr": round(float(df["co2_mitigation_tons_yr"].mean()), 1),
+            "description": "Annual CO2 co-benefit for the configured urban greening scenario",
+        },
+        "urban_planning": {
+            "avg_priority": round(float(df["planning_priority"].mean()), 1),
+            "high_priority_pixel_pct": round(float((df["planning_priority"] >= 70).mean() * 100), 1),
+            "top_zones": zones,
+            "description": "Priority score combines LST, NDVI deficit, imperviousness, and population exposure",
         },
     }
 
@@ -376,9 +543,14 @@ def get_hotspots(city_key: str) -> dict[str, Any]:
         raw = path.read_text(encoding="utf-8").replace("NaN", "null")
         return json.loads(raw)
     df = _load_feature_table(city_key)
-    severe = df.nlargest(50, "lst_c")
+    hotspot_df = df[df["hotspot_class"] >= 1].copy()
+    if hotspot_df.empty:
+        hotspot_df = df.nlargest(30, "lst_c")
+    else:
+        hotspot_df = hotspot_df.nlargest(80, "lst_c")
     features = []
-    for _, row in severe.iterrows():
+    for _, row in hotspot_df.iterrows():
+        cls = int(row["hotspot_class"])
         features.append(
             {
                 "type": "Feature",
@@ -386,7 +558,11 @@ def get_hotspots(city_key: str) -> dict[str, Any]:
                 "properties": {
                     "hotspot_id": f"{cfg['city_name']}_{int(row['row'])}_{int(row['col'])}",
                     "lst_c": float(row["lst_c"]),
-                    "hotspot_class": int(row["hotspot_class"]),
+                    "hotspot_class": cls,
+                    "hotspot_label": "Severe" if cls >= 2 else "Moderate" if cls >= 1 else "Warm",
+                    "gi_star_z": float(row.get("gi_star_z", 0.0)),
+                    "ndvi": float(row.get("ndvi", 0.0)),
+                    "population": float(row.get("population", 0.0)),
                 },
             }
         )

@@ -29,6 +29,9 @@ streamlit-folium>=0.18.0
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 
+# PDF generation
+reportlab>=4.0.0
+
 # Config + utilities
 pyyaml>=6.0.1
 tqdm>=4.66.0
@@ -41,3 +44,5 @@ ipykernel>=6.27.0
 
 # Optional physics / advanced (modular)
 # torch>=2.1.0  # uncomment for PINN branch
+netcdf4>=1.6.0
+gdown>=5.1.0

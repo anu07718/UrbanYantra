@@ -10,7 +10,7 @@ import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
-from data_ingestion.data_provenance import is_real_data_mode, require_real_source
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source, use_gee_for_satellite
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:
         return out_path
 
     mode = config.get("data_mode", "synthetic")
-    if mode == "gee":
+    if use_gee_for_satellite(config):
         try:
             raw_path = fetch_landsat_lst_gee(config, out_dir)
             # Process raw Landsat (Kelvin) to Celsius and save
@@ -121,7 +121,7 @@ def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:
             require_real_source(config, "Landsat LST", exc)
 
     if is_real_data_mode(config):
-        raise RuntimeError("Landsat LST unavailable in gee mode")
+        raise RuntimeError(f"Landsat LST unavailable (data_mode={mode})")
 
     lst = generate_synthetic_lst(config, shape=synthetic_grid_shape(config))
     save_geotiff(lst, out_path, config["bbox"])

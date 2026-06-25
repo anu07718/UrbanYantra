@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from data_ingestion.cache import save_geotiff
-from data_ingestion.data_provenance import is_real_data_mode, require_real_source
+from data_ingestion.data_provenance import is_local_data_mode, is_real_data_mode, prefer_local_files, require_real_source
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,16 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
     }
     if all(p.exists() for p in paths.values()) and not config.get("force_refresh"):
         return paths
+
+    if is_local_data_mode(config) or prefer_local_files(config):
+        try:
+            from data_ingestion.ghsl_local import ingest_ghsl_local
+
+            return ingest_ghsl_local(config, out_dir)
+        except FileNotFoundError as exc:
+            if is_local_data_mode(config):
+                raise
+            logger.warning("Local/Drive GHSL not available (%s) — trying GEE.", exc)
 
     mode = config.get("data_mode", "synthetic")
     if mode == "gee":

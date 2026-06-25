@@ -15,5 +15,13 @@ services:
         value: "3.12.0"
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: URBANCOOL_DATA_CACHE
+        value: /opt/render/project/src/data/cache
+      - key: NEXT_PUBLIC_API_BASE
+        sync: false
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      - key: GEE_PROJECT
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false

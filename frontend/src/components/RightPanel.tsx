@@ -12,25 +12,135 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ClimatePoint, CoolingStrategy, Driver } from "@/types";
+import type {
+  CitySummary,
+  ClimatePoint,
+  CoolingStrategy,
+  Driver,
+  InterventionRanking,
+} from "@/types";
 import { DRIVER_COLORS } from "@/lib/colors";
 
 interface RightPanelProps {
   cooling: CoolingStrategy[];
   drivers: Driver[];
   climate: ClimatePoint[];
+  interventions?: InterventionRanking[];
   dataMode?: string;
+  summary?: CitySummary | null;
+  onOpenDataDetails?: () => void;
 }
 
-export default function RightPanel({ cooling, drivers, climate, dataMode }: RightPanelProps) {
+const INTERVENTION_LABELS: Record<string, string> = {
+  cool_roof: "Cool Roof",
+  urban_greening: "Urban Greening",
+  blue_infrastructure: "Blue Infra",
+};
+
+const COMPLEXITY_CLASS: Record<string, string> = {
+  low: "text-emerald-300",
+  medium: "text-amber-300",
+  high: "text-orange-300",
+};
+
+export default function RightPanel({
+  cooling,
+  drivers,
+  climate,
+  interventions = [],
+  dataMode,
+  summary,
+  onOpenDataDetails,
+}: RightPanelProps) {
   const driverData = drivers.map((d, i) => ({
     name: d.feature.replace(/\(.*\)/, "").trim().slice(0, 22),
     pct: Math.max(0, Math.min(100, d.importance_pct)),
     fill: DRIVER_COLORS[i % DRIVER_COLORS.length],
   }));
+  const artifacts = summary?.artifacts_present ?? {};
+  const presentCount = Object.values(artifacts).filter(Boolean).length;
+  const totalCount = Object.keys(artifacts).length;
 
   return (
     <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-slate-700/60 bg-[#151b28] p-3">
+      <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-slate-100">Real Data Status</h3>
+          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">
+            {summary?.is_real_data ? "Live outputs" : "Demo"}
+          </span>
+        </div>
+        <p className="mt-1 text-[10px] leading-snug text-slate-400">
+          Real datasets are powering the map and model outputs.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-1 text-[10px]">
+          <div className="rounded bg-slate-900/50 px-2 py-1">
+            <span className="block text-slate-500">Mode</span>
+            <span className="font-mono text-emerald-300">{dataMode ?? summary?.data_mode ?? "unknown"}</span>
+          </div>
+          <div className="rounded bg-slate-900/50 px-2 py-1">
+            <span className="block text-slate-500">Artifacts</span>
+            <span className="font-mono text-emerald-300">
+              {totalCount ? `${presentCount}/${totalCount}` : "loading"}
+            </span>
+          </div>
+        </div>
+        {onOpenDataDetails && (
+          <button
+            type="button"
+            onClick={onOpenDataDetails}
+            className="mt-2 w-full rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 transition-colors hover:bg-emerald-500/20"
+          >
+            Detail About Data
+          </button>
+        )}
+      </div>
+
+      {interventions.length > 0 && (
+        <div className="rounded-lg border border-cyan-700/40 bg-cyan-950/15 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-slate-200">Ranked Interventions</h3>
+            <span className="text-[9px] uppercase text-cyan-400/80">Top {interventions.length}</span>
+          </div>
+          <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+            {interventions.slice(0, 12).map((row) => {
+              const label = INTERVENTION_LABELS[row.intervention_type] ?? row.intervention_type;
+              const complexity = (row.implementation_complexity ?? "medium").toLowerCase();
+              return (
+                <div
+                  key={`${row.rank}-${row.intervention_type}-${row.target_row ?? row.lon}`}
+                  className="rounded border border-slate-700/50 bg-slate-900/55 px-2 py-1.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-semibold text-white">
+                        #{row.rank} · {label}
+                      </p>
+                      <p className="truncate text-[10px] text-slate-500">
+                        {row.intervention_description ?? `${row.lat.toFixed(3)}°N, ${row.lon.toFixed(3)}°E`}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] font-bold text-cyan-300">
+                      −{row.estimated_temp_reduction_c.toFixed(2)}°C
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[9px]">
+                    <span className={`font-semibold uppercase ${COMPLEXITY_CLASS[complexity] ?? "text-slate-400"}`}>
+                      {complexity} effort
+                    </span>
+                    {row.cost_effectiveness_score != null && (
+                      <span className="font-mono text-slate-500">
+                        ROI {row.cost_effectiveness_score.toFixed(3)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border border-slate-700/60 bg-slate-800/50 p-3">
         <h3 className="mb-2 text-xs font-semibold text-slate-200">Cooling Potential by Strategy</h3>
         <ResponsiveContainer width="100%" height={140}>

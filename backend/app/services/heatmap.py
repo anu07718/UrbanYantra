@@ -63,6 +63,15 @@ def _read_raster(path: Path) -> np.ndarray:
         return src.read(1).astype(np.float32)
 
 
+def _normalize_built_surface(arr: np.ndarray) -> np.ndarray:
+    """Scale GHSL built-surface m² to 0–1 density for map display."""
+    finite = arr[np.isfinite(arr) & (arr > 0)]
+    if finite.size == 0:
+        return np.zeros_like(arr, dtype=np.float32)
+    p98 = float(np.percentile(finite, 98))
+    return np.clip(arr / (p98 + 1e-6), 0, 1).astype(np.float32)
+
+
 @lru_cache(maxsize=16)
 def _load_feature_table(city_key: str) -> pd.DataFrame:
     return pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
@@ -147,6 +156,35 @@ def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
     if layer == "vulnerability":
         return _grid_from_column(df, "hotspot_class")
 
+    if layer == "ghsl_built":
+        for name in ("ghsl_built_surface.tif", "impervious_frac.tif"):
+            try:
+                raw = _read_raster(raster_dir / name)
+                if name.startswith("ghsl"):
+                    return _normalize_built_surface(raw)
+                return raw
+            except FileNotFoundError:
+                continue
+        col = "building_density" if "building_density" in df.columns else "impervious_frac"
+        return _grid_from_column(df, col)
+
+    if layer == "ghsl_population":
+        try:
+            return _read_raster(raster_dir / "ghsl_population.tif")
+        except FileNotFoundError:
+            if "population" in df.columns:
+                return _grid_from_column(df, "population")
+            raise
+
+    if layer == "ghsl_smod":
+        try:
+            smod = _read_raster(raster_dir / "ghsl_smod.tif")
+            return np.clip(smod / 30.0, 0, 1).astype(np.float32)
+        except FileNotFoundError:
+            if "lcz_class" in df.columns:
+                return np.clip(_grid_from_column(df, "lcz_class") / 10.0, 0, 1)
+            raise
+
     try:
         return _read_raster(raster_dir / "lst_10m.tif")
     except FileNotFoundError:
@@ -161,6 +199,12 @@ def _colormap_for_layer(layer: str):
         return "YlGn"
     if layer == "svf":
         return "Purples"
+    if layer == "ghsl_built":
+        return "Oranges"
+    if layer == "ghsl_population":
+        return "YlOrRd"
+    if layer == "ghsl_smod":
+        return "BuPu"
     if layer == "vulnerability":
         return "RdYlGn_r"
     return "RdYlBu_r"
@@ -198,6 +242,15 @@ def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
                 [display_bbox[1], display_bbox[0]],
                 [display_bbox[3], display_bbox[2]],
             ]
+    elif layer == "ghsl_built":
+        meta["unit"] = "built-up index"
+        meta["source"] = "GHSL Built-S (Google Drive cache)"
+    elif layer == "ghsl_population":
+        meta["unit"] = "people/cell"
+        meta["source"] = "GHSL Population (Google Drive cache)"
+    elif layer == "ghsl_smod":
+        meta["unit"] = "settlement degree"
+        meta["source"] = "GHSL SMOD (Google Drive cache)"
     return meta
 
 
@@ -255,6 +308,18 @@ def build_fine_grid_geojson(
     """
     cfg = load_city_config(ROOT / "configs" / "cities.yaml", city_key)
     df = _load_feature_table(city_key)
+    raster_dir = _city_out_dir(city_key) / "rasters"
+    ghsl_built_path = raster_dir / "ghsl_built_surface.tif"
+    ghsl_smod_path = raster_dir / "ghsl_smod.tif"
+    if ghsl_built_path.exists():
+        built_raw = _read_raster(ghsl_built_path)
+        built_norm = _normalize_built_surface(built_raw)
+        df = df.copy()
+        df["ghsl_built"] = built_norm[df["row"].to_numpy(), df["col"].to_numpy()]
+    if ghsl_smod_path.exists():
+        smod_raw = _read_raster(ghsl_smod_path)
+        df = df.copy()
+        df["ghsl_smod"] = smod_raw[df["row"].to_numpy(), df["col"].to_numpy()]
     if mask_water:
         df = visible_pixels(df)
     h = int(df["row"].max()) + 1 if len(df) else 0
@@ -294,6 +359,14 @@ def build_fine_grid_geojson(
         agg_kwargs["gi_star_z"] = ("gi_star_z", "mean")
     if "impervious_frac" in grouped_df.columns:
         agg_kwargs["impervious_frac"] = ("impervious_frac", "mean")
+    if "building_density" in grouped_df.columns:
+        agg_kwargs["building_density"] = ("building_density", "mean")
+    if "population" in grouped_df.columns:
+        agg_kwargs["population"] = ("population", "mean")
+    if "ghsl_built" in grouped_df.columns:
+        agg_kwargs["ghsl_built"] = ("ghsl_built", "mean")
+    if "ghsl_smod" in grouped_df.columns:
+        agg_kwargs["ghsl_smod"] = ("ghsl_smod", "mean")
     if "is_water" in grouped_df.columns:
         agg_kwargs["is_water"] = ("is_water", "mean")
 
@@ -313,6 +386,10 @@ def build_fine_grid_geojson(
         avg_imp = float(np.nan_to_num(getattr(block, "impervious_frac", np.nan), nan=np.nan))
         if not np.isfinite(avg_imp):
             avg_imp = float(np.clip(1.0 - avg_ndvi, 0.0, 1.0))
+        avg_pop = float(np.nan_to_num(getattr(block, "population", np.nan), nan=0.0))
+        avg_bld = float(np.nan_to_num(getattr(block, "building_density", np.nan), nan=np.nan))
+        avg_ghsl_built = float(np.nan_to_num(getattr(block, "ghsl_built", np.nan), nan=np.nan))
+        avg_ghsl_smod = float(np.nan_to_num(getattr(block, "ghsl_smod", np.nan), nan=np.nan))
         hotspot_frac = float(np.nan_to_num(block.hotspot_flag, nan=0.0))
         humidity = float(np.nan_to_num(getattr(block, "humidity_proxy", 0.55), nan=0.55))
         utci = float(np.nan_to_num(avg_lst * 0.72 + humidity * 8.0 - 2.5, nan=35.0))
@@ -361,6 +438,10 @@ def build_fine_grid_geojson(
                     "ndvi": round(np.nan_to_num(avg_ndvi, nan=0.3), 3),
                     "ndbi": round(np.nan_to_num(avg_ndbi, nan=0.1), 3),
                     "impervious_frac": round(np.nan_to_num(avg_imp, nan=0.5), 3),
+                    "building_density": round(np.nan_to_num(avg_bld, nan=avg_imp), 3),
+                    "population": round(np.nan_to_num(avg_pop, nan=0.0), 1),
+                    "ghsl_built": round(np.nan_to_num(avg_ghsl_built, nan=0.0), 2),
+                    "ghsl_smod": round(np.nan_to_num(avg_ghsl_smod, nan=0.0), 1),
                     "vulnerability_class": vuln,
                     "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
                     "hotspot_class": int(getattr(block, "hotspot_class", 0)),

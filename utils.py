@@ -16,12 +16,27 @@ def load_config(path: str | Path) -> dict[str, Any]:
 
 
 def load_city_config(cities_path: str | Path, city_key: str) -> dict[str, Any]:
-    """Merge defaults + per-city entry from configs/cities.yaml."""
+    """Merge defaults + per-city entry from configs/cities.yaml + local_datasets.yaml."""
     raw = load_config(cities_path)
     defaults = deepcopy(raw.get("defaults", {}))
     city = raw["cities"][city_key]
     merged = {**defaults, **city}
     merged["city_key"] = city_key
+
+    local_path = Path(cities_path).parent / "local_datasets.yaml"
+    if local_path.exists():
+        local_raw = load_config(local_path)
+        local_data = local_raw.get("local_data", {})
+        merged.setdefault("local_data", {})
+        merged["local_data"] = {**local_data, **merged.get("local_data", {})}
+
+    remote_path = Path(cities_path).parent / "remote_datasets.yaml"
+    if remote_path.exists():
+        remote_raw = load_config(remote_path)
+        remote_data = remote_raw.get("remote_data", {})
+        merged.setdefault("remote_data", {})
+        merged["remote_data"] = {**remote_data, **merged.get("remote_data", {})}
+
     return merged
 
 

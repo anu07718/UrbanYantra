@@ -169,11 +169,17 @@ def build_thermal_overlay(city_key: str, force: bool = False) -> dict[str, Any]:
 
 
 def get_thermal_overlay_meta(city_key: str) -> dict[str, Any]:
-    meta_path = _city_out_dir(city_key) / "maps" / META_NAME
-    if meta_path.exists():
-        lst_path = _lst_source_path(_city_out_dir(city_key))
-        if lst_path and meta_path.stat().st_mtime >= lst_path.stat().st_mtime:
+    """Return pre-built overlay metadata; rebuild only when source rasters are newer."""
+    out_dir = _city_out_dir(city_key)
+    meta_path = out_dir / "maps" / META_NAME
+    png_path = out_dir / "maps" / PNG_NAME
+
+    if meta_path.exists() and png_path.exists():
+        lst_path = _lst_source_path(out_dir)
+        # Deploy bundles ship PNG+meta without Landsat GeoTIFFs — serve cached assets.
+        if lst_path is None or meta_path.stat().st_mtime >= lst_path.stat().st_mtime:
             return json.loads(meta_path.read_text(encoding="utf-8"))
+
     return build_thermal_overlay(city_key)
 
 

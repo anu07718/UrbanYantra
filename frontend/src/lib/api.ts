@@ -50,7 +50,12 @@ export async function getHeatmapMeta(cityKey: string, layer: string) {
 // Georeferenced Landsat thermal overlay (RGBA PNG on satellite basemap)
 export async function getThermalOverlayMeta(cityKey: string) {
   const res = await fetch(`${apiBase}/cities/${cityKey}/thermal/overlay/meta`);
-  if (!res.ok) throw new Error(`Failed to fetch thermal overlay meta: ${res.statusText}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Failed to fetch thermal overlay meta: ${res.status}${detail ? ` — ${detail.slice(0, 120)}` : ""}`
+    );
+  }
   return res.json();
 }
 

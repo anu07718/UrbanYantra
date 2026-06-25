@@ -1,0 +1,8 @@
+{
+  "city_key": "Mangaluru",
+  "city_name": "Mangaluru",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 12000,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\mangaluru"
+}

@@ -1,0 +1,8 @@
+{
+  "city_key": "Delhi_NCR",
+  "city_name": "Delhi NCR",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 13440,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\delhi_ncr"
+}

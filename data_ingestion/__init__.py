@@ -24,8 +24,9 @@ def run_ingestion(config: dict) -> dict:
         "landsat_lst": ingest_landsat_lst(config, out_dir),
         "sentinel2_indices": ingest_sentinel2_indices(config, out_dir),
         "worldcover": ingest_worldcover(config, out_dir),
-        "era5_land": ingest_era5_land(config, out_dir),
         "ghsl": ingest_ghsl(config, out_dir),
+        "era5_land": ingest_era5_land(config, out_dir),
+        # After Sentinel-2 / WorldCover so morphology matches the satellite grid
         "osm_morphology": fetch_osm_morphology(config, out_dir),
     }
     logger.info("Ingestion complete.")

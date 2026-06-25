@@ -1,0 +1,8 @@
+{
+  "city_key": "Pune",
+  "city_name": "Pune",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 10440,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\pune"
+}

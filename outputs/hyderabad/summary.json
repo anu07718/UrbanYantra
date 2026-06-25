@@ -1,0 +1,8 @@
+{
+  "city_key": "Hyderabad",
+  "city_name": "Hyderabad",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 12600,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\hyderabad"
+}

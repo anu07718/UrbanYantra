@@ -10,6 +10,7 @@ import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,10 @@ def ingest_landsat_lst(config: dict, out_dir: Path) -> Path:
             logger.info("Processed Landsat LST saved to %s", out_path)
             return out_path
         except Exception as exc:
-            logger.warning("GEE Landsat fetch failed: %s — using synthetic.", exc)
+            require_real_source(config, "Landsat LST", exc)
+
+    if is_real_data_mode(config):
+        raise RuntimeError("Landsat LST unavailable in gee mode")
 
     lst = generate_synthetic_lst(config, shape=synthetic_grid_shape(config))
     save_geotiff(lst, out_path, config["bbox"])

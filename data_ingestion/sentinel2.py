@@ -10,6 +10,7 @@ import numpy as np
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
 from features.spectral_indices import compute_indices_from_bands
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, Path]:
     region = get_study_region(bbox)
     s2_cfg = config["sentinel2"]
     res_m = config.get("target_resolution_m", 10)
+    export_scale = max(int(res_m), 30)
 
     def mask_clouds(img):
         qa = img.select("QA60")
@@ -52,10 +54,12 @@ def fetch_sentinel2_gee(config: dict, out_dir: Path) -> dict[str, Path]:
     )
     composite = collection.median().clip(region)
     bands = ["B2", "B3", "B4", "B8", "B11"]
+    # GEE getDownloadURL pixel cap — export at ≥30 m, resampled in feature stack
+    export_scale = max(int(config.get("target_resolution_m", 10)), 30)
     paths = {}
     for band in bands:
         url = composite.select(band).getDownloadURL(
-            {"scale": res_m, "crs": config.get("crs", "EPSG:4326"), "region": region, "format": "GEO_TIFF"}
+            {"scale": export_scale, "crs": config.get("crs", "EPSG:4326"), "region": region, "format": "GEO_TIFF"}
         )
         import requests
 
@@ -89,7 +93,10 @@ def ingest_sentinel2_indices(config: dict, out_dir: Path) -> dict[str, Path]:
                 with rasterio.open(p) as src:
                     bands[b] = src.read(1).astype(np.float32)
         except Exception as exc:
-            logger.warning("GEE Sentinel-2 failed: %s — synthetic.", exc)
+            require_real_source(config, "Sentinel-2", exc)
+
+    if is_real_data_mode(config):
+        raise RuntimeError("Sentinel-2 unavailable in gee mode")
 
     if bands is None:
         bands = generate_synthetic_s2_bands(config, shape=synthetic_grid_shape(config))

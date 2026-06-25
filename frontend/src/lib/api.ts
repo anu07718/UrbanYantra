@@ -47,6 +47,26 @@ export async function getHeatmapMeta(cityKey: string, layer: string) {
   return res.json();
 }
 
+// Georeferenced Landsat thermal overlay (RGBA PNG on satellite basemap)
+export async function getThermalOverlayMeta(cityKey: string) {
+  const res = await fetch(`${apiBase}/cities/${cityKey}/thermal/overlay/meta`);
+  if (!res.ok) throw new Error(`Failed to fetch thermal overlay meta: ${res.statusText}`);
+  return res.json();
+}
+
+export function thermalOverlayUrl(cityKey: string) {
+  return `${apiBase}/cities/${cityKey}/thermal/overlay.png`;
+}
+
+/** @deprecated use getThermalOverlayMeta */
+export async function getThermalTiles(cityKey: string) {
+  return getThermalOverlayMeta(cityKey);
+}
+
+export function heatmapPngUrl(cityKey: string, layer: string) {
+  return `${apiBase}/cities/${cityKey}/heatmap/${layer}.png`;
+}
+
 // Sample points
 export async function getSamplePoints(cityKey: string, stride: number = 2) {
   const res = await fetch(`${apiBase}/cities/${cityKey}/sample-points?stride=${stride}`);

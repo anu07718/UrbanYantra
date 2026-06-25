@@ -1,46 +1,234 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import DeckGL from "@deck.gl/react";
 import { GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo, MapViewState } from "@deck.gl/core";
 import type { FeatureCollection, Polygon } from "geojson";
-import Map from "react-map-gl/maplibre";
+import Map, { Source, Layer as MapLayerGL } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { getThermalOverlayMeta, thermalOverlayUrl } from "@/lib/api";
 import type {
   HeatmapMeta,
   HotspotCollection,
   MapLayer,
   PointPrediction,
   SamplePointCollection,
+  ThermalOverlayMeta,
   WardCollection,
   WardProperties,
 } from "@/types";
 
-/* ── Carto Positron — white basemap, no token ──────────────────────────── */
+/* ── Basemaps ──────────────────────────────────────────────────────────── */
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
-/* ── 5 discrete heat tiers exactly matching the reference image ────────── */
-const TIERS = [
-  { key: "critical", min: 40,        max: Infinity, rgb: [255,  23,  68] as [number,number,number], label: "Critical", range: "≥ 40°C"  },
-  { key: "high",     min: 38,        max: 40,        rgb: [255, 145,   0] as [number,number,number], label: "High",     range: "38–40°C" },
-  { key: "moderate", min: 36,        max: 38,        rgb: [255, 214,   0] as [number,number,number], label: "Moderate", range: "36–38°C" },
-  { key: "normal",   min: 34,        max: 36,        rgb: [  0, 200,  83] as [number,number,number], label: "Normal",   range: "34–36°C" },
-  { key: "cool",     min: -Infinity, max: 34,        rgb: [ 41, 121, 255] as [number,number,number], label: "Cool",     range: "< 34°C"  },
+const SATELLITE_MAP_STYLE = {
+  version: 8 as const,
+  sources: {
+    esri: {
+      type: "raster" as const,
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "© Esri, Earthstar Geographics",
+      maxzoom: 19,
+    },
+  },
+  layers: [{ id: "esri-satellite", type: "raster" as const, source: "esri" }],
+};
+
+/* Jet ramp stops for thermal legend (Kelvin scale) */
+const THERMAL_JET_STOPS: ColorStop[] = [
+  { at: 0,    rgb: [0, 0, 143] },
+  { at: 0.17, rgb: [0, 0, 255] },
+  { at: 0.33, rgb: [0, 255, 255] },
+  { at: 0.5,  rgb: [0, 255, 0] },
+  { at: 0.67, rgb: [255, 255, 0] },
+  { at: 0.83, rgb: [255, 127, 0] },
+  { at: 1,    rgb: [255, 0, 0] },
 ];
 
-function displayLst(p: WardProperties): number {
-  return p.lst_calibrated_c ?? p.avg_lst_c;
+type Rgb = [number, number, number];
+type ColorStop = { at: number; rgb: Rgb };
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
 }
 
-function tierRgba(lst: number, alpha: number): [number,number,number,number] {
-  const t = TIERS.find((t) => lst >= t.min && lst < t.max) ?? TIERS[TIERS.length - 1];
-  return [t.rgb[0], t.rgb[1], t.rgb[2], alpha];
+function rampRgb(t: number, stops: ColorStop[]): Rgb {
+  const clamped = Math.max(0, Math.min(1, t));
+  let lo = stops[0];
+  let hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (clamped >= stops[i].at && clamped <= stops[i + 1].at) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
+  }
+  const span = hi.at - lo.at || 1;
+  const f = (clamped - lo.at) / span;
+  return [
+    Math.round(lerp(lo.rgb[0], hi.rgb[0], f)),
+    Math.round(lerp(lo.rgb[1], hi.rgb[1], f)),
+    Math.round(lerp(lo.rgb[2], hi.rgb[2], f)),
+  ];
+}
+
+function normalize(value: number, vmin: number, vmax: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (vmax <= vmin) return 0.5;
+  return Math.max(0, Math.min(1, (value - vmin) / (vmax - vmin)));
+}
+
+const LAYER_RAMPS: Record<MapLayer, ColorStop[]> = {
+  lst: [
+    { at: 0,    rgb: [41, 121, 255] },
+    { at: 0.35, rgb: [0, 200, 83] },
+    { at: 0.6,  rgb: [255, 214, 0] },
+    { at: 0.8,  rgb: [255, 145, 0] },
+    { at: 1,    rgb: [255, 23, 68] },
+  ],
+  thermal: [
+    { at: 0,    rgb: [0, 0, 143] },
+    { at: 0.2,  rgb: [59, 130, 246] },
+    { at: 0.4,  rgb: [6, 182, 212] },
+    { at: 0.55, rgb: [16, 185, 129] },
+    { at: 0.7,  rgb: [245, 158, 11] },
+    { at: 0.85, rgb: [255, 100, 0] },
+    { at: 1,    rgb: [239, 68, 68] },
+  ],
+  utci: [
+    { at: 0,    rgb: [0, 200, 83] },
+    { at: 0.45, rgb: [255, 214, 0] },
+    { at: 0.7,  rgb: [255, 145, 0] },
+    { at: 1,    rgb: [255, 23, 68] },
+  ],
+  ndvi: [
+    { at: 0,    rgb: [180, 90, 40] },
+    { at: 0.35, rgb: [210, 180, 60] },
+    { at: 0.65, rgb: [130, 200, 80] },
+    { at: 1,    rgb: [0, 150, 60] },
+  ],
+  svf: [
+    { at: 0,    rgb: [230, 220, 245] },
+    { at: 0.35, rgb: [180, 140, 210] },
+    { at: 0.65, rgb: [128, 50, 180] },
+    { at: 1,    rgb: [75, 0, 130] },
+  ],
+  vulnerability: [
+    { at: 0,    rgb: [0, 200, 83] },
+    { at: 0.35, rgb: [255, 214, 0] },
+    { at: 0.65, rgb: [255, 145, 0] },
+    { at: 1,    rgb: [255, 23, 68] },
+  ],
+};
+
+const LAYER_CONFIG: Record<MapLayer, {
+  legendTitle: string;
+  heightNote: string;
+  unit: string;
+  ramp: ColorStop[];
+  getValue: (p: WardProperties, wardSim: Record<string, number>) => number;
+  formatValue: (v: number) => string;
+  tooltipLabel: string;
+  defaultBounds: [number, number];
+}> = {
+  lst: {
+    legendTitle: "Surface Temperature (LST)",
+    heightNote: "Height ∝ temperature",
+    unit: "°C",
+    ramp: LAYER_RAMPS.lst,
+    getValue: (p, wardSim) => wardSim[p.ward_id] ?? (p.lst_calibrated_c ?? p.avg_lst_c),
+    formatValue: (v) => `${v.toFixed(1)}°C`,
+    tooltipLabel: "LST",
+    defaultBounds: [32, 44],
+  },
+  thermal: {
+    legendTitle: "Land Surface Temperature",
+    heightNote: "Satellite thermal raster (Landsat ST_B10)",
+    unit: " K",
+    ramp: THERMAL_JET_STOPS,
+    getValue: (p, wardSim) => {
+      const c = wardSim[p.ward_id] ?? (p.lst_calibrated_c ?? p.avg_lst_c);
+      return c + 273.15;
+    },
+    formatValue: (v) => `${v.toFixed(1)} K`,
+    tooltipLabel: "LST",
+    defaultBounds: [305, 320],
+  },
+  utci: {
+    legendTitle: "Heat Stress (UTCI)",
+    heightNote: "Height ∝ heat stress",
+    unit: "°C UTCI",
+    ramp: LAYER_RAMPS.utci,
+    getValue: (p) => p.heat_stress_utci_c,
+    formatValue: (v) => `${v.toFixed(1)}°C UTCI`,
+    tooltipLabel: "UTCI",
+    defaultBounds: [18, 30],
+  },
+  ndvi: {
+    legendTitle: "Green Coverage (NDVI)",
+    heightNote: "Height ∝ vegetation",
+    unit: "",
+    ramp: LAYER_RAMPS.ndvi,
+    getValue: (p) => p.ndvi,
+    formatValue: (v) => v.toFixed(2),
+    tooltipLabel: "NDVI",
+    defaultBounds: [0.1, 0.35],
+  },
+  svf: {
+    legendTitle: "Building Density",
+    heightNote: "Height ∝ built-up area",
+    unit: "",
+    ramp: LAYER_RAMPS.svf,
+    getValue: (p) => p.impervious_frac ?? Math.max(0, 1 - p.ndvi),
+    formatValue: (v) => v.toFixed(2),
+    tooltipLabel: "Built-up",
+    defaultBounds: [0, 0.8],
+  },
+  vulnerability: {
+    legendTitle: "Risk Level",
+    heightNote: "Height ∝ risk score",
+    unit: "",
+    ramp: LAYER_RAMPS.vulnerability,
+    getValue: (p) => {
+      const hotspot = p.hotspot_class ?? 0;
+      const lst = p.lst_calibrated_c ?? p.avg_lst_c;
+      const lstScore = Math.max(0, Math.min(1, (lst - 34) / 10));
+      return hotspot + p.hotspot_fraction * 2 + lstScore * 0.5;
+    },
+    formatValue: (v) => (v >= 2.5 ? "Critical" : v >= 1.5 ? "High" : v >= 0.75 ? "Moderate" : "Low"),
+    tooltipLabel: "Risk",
+    defaultBounds: [0, 3],
+  },
+};
+
+function valueRgba(value: number, vmin: number, vmax: number, ramp: ColorStop[], alpha = 235): [number, number, number, number] {
+  const rgb = rampRgb(normalize(value, vmin, vmax), ramp);
+  return [rgb[0], rgb[1], rgb[2], alpha];
+}
+
+function valueElevation(value: number, vmin: number, vmax: number, layer: MapLayer): number {
+  const t = normalize(value, vmin, vmax);
+  if (layer === "lst" || layer === "utci") {
+    return Math.max(80, t * 2200);
+  }
+  return Math.max(80, t * 1400);
+}
+
+function legendStops(ramp: ColorStop[], vmin: number, vmax: number, unit: string) {
+  return ramp.map((stop) => ({
+    rgb: stop.rgb,
+    label: unit ? `${(vmin + (vmax - vmin) * stop.at).toFixed(1)}${unit}` : (vmin + (vmax - vmin) * stop.at).toFixed(2),
+  }));
 }
 
 /* ── Layer / view constants ─────────────────────────────────────────────── */
 const LAYER_LABELS: { id: MapLayer; label: string; tip: string }[] = [
   { id: "lst",           label: "Surface Temperature",    tip: "How hot the ground surface is (°C) from satellite data." },
+  { id: "thermal",       label: "Thermal View",           tip: "Real satellite thermal imagery (Landsat ST_B10, Kelvin) on Esri satellite basemap." },
   { id: "utci",          label: "Heat Stress on People",  tip: "How uncomfortable the heat feels to a person outdoors." },
   { id: "ndvi",          label: "Green Coverage",         tip: "How much vegetation (trees, grass) is in each area. Higher = cooler." },
   { id: "svf",           label: "Building Density",       tip: "How densely built the area is. Dense areas trap more heat." },
@@ -49,7 +237,9 @@ const LAYER_LABELS: { id: MapLayer; label: string; tip: string }[] = [
 
 interface TooltipState {
   x: number; y: number;
-  lst: number;
+  value: number;
+  valueLabel: string;
+  formatted: string;
   vuln: string;
   name: string;
 }
@@ -81,7 +271,7 @@ export default function HeatMap({
   domains,
   fineGrid,
   hotspots,
-  samplePoints,
+  heatmapMeta,
   bbox,
   layer,
   selectedWard,
@@ -92,10 +282,15 @@ export default function HeatMap({
   predicting,
   onMapClick,
 }: HeatMapProps) {
+  const isThermalMode = layer === "thermal";
   const [showGrid,      setShowGrid]      = useState(true);
   const [showDomains,   setShowDomains]   = useState(true);
   const [showHotspots,  setShowHotspots]  = useState(false);
   const [pitch,       setPitch]       = useState(45);
+  const [bearing,     setBearing]     = useState(-15);
+  const [thermalOverlay, setThermalOverlay] = useState<ThermalOverlayMeta | null>(null);
+  const [thermalLoading, setThermalLoading] = useState(false);
+  const [thermalError, setThermalError] = useState<string | null>(null);
   const [viewState,   setViewState]   = useState<MapViewState>(() => ({
     longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
     latitude:  bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
@@ -107,23 +302,111 @@ export default function HeatMap({
   }));
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
+  const layerConfig = LAYER_CONFIG[layer];
+
+  /* Load georeferenced Landsat thermal overlay (RGBA PNG on satellite basemap) */
+  useEffect(() => {
+    if (!isThermalMode || !cityKey) {
+      setThermalOverlay(null);
+      setThermalError(null);
+      setThermalLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setThermalLoading(true);
+    setThermalError(null);
+    getThermalOverlayMeta(cityKey)
+      .then((data) => {
+        if (!cancelled) {
+          setThermalOverlay(data);
+          setThermalLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setThermalOverlay(null);
+          setThermalError(err instanceof Error ? err.message : "Thermal overlay unavailable");
+          setThermalLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [isThermalMode, cityKey]);
+
+  const scaleBounds = useMemo<[number, number]>(() => {
+    if (isThermalMode) {
+      if (thermalOverlay) return [thermalOverlay.vmin_k, thermalOverlay.vmax_k];
+      return layerConfig.defaultBounds;
+    }
+    const metaOk = heatmapMeta?.layer === layer && heatmapMeta.vmax > heatmapMeta.vmin;
+    if (metaOk) return [heatmapMeta.vmin, heatmapMeta.vmax];
+
+    const values = (fineGrid?.features ?? []).map((f) =>
+      layerConfig.getValue(f.properties, wardSimulations)
+    ).filter((v) => Number.isFinite(v));
+
+    if (values.length >= 2) {
+      const vmin = Math.min(...values);
+      const vmax = Math.max(...values);
+      if (vmax > vmin) return [vmin, vmax];
+    }
+
+    return layerConfig.defaultBounds;
+  }, [fineGrid, heatmapMeta, layer, layerConfig, wardSimulations, isThermalMode, thermalOverlay]);
+
+  const [vmin, vmax] = scaleBounds;
+  const thermalLegendRamp = isThermalMode ? THERMAL_JET_STOPS : layerConfig.ramp;
+  const legendItems = useMemo(
+    () => legendStops(thermalLegendRamp, vmin, vmax, isThermalMode ? " K" : layerConfig.unit),
+    [thermalLegendRamp, layerConfig, vmin, vmax, isThermalMode]
+  );
+
+  const thermalImageCoords = useMemo(() => {
+    if (!thermalOverlay?.coordinates) return null;
+    return thermalOverlay.coordinates as [
+      [number, number], [number, number], [number, number], [number, number]
+    ];
+  }, [thermalOverlay]);
+
+  const cellValue = useCallback((p: WardProperties) => {
+    return layerConfig.getValue(p, wardSimulations);
+  }, [layerConfig, wardSimulations]);
+
   /* sync pitch into viewState when user clicks a button */
   const applyPitch = useCallback((p: number) => {
     setPitch(p);
     setViewState((v) => ({ ...v, pitch: p }));
   }, []);
 
+  const applyBearing = useCallback((b: number) => {
+    setBearing(b);
+    setViewState((v) => ({ ...v, bearing: b }));
+  }, []);
+
+  /* Thermal view: flat north-up satellite (fixes skewed rectangle overlay) */
+  useEffect(() => {
+    if (isThermalMode) {
+      applyPitch(0);
+      applyBearing(0);
+      setShowDomains(false);
+    }
+  }, [isThermalMode, cityKey, applyPitch, applyBearing]);
+
   /* recenter when city changes */
-  const centeredView = useMemo<MapViewState>(() => ({
-    longitude: bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59,
-    latitude:  bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97,
-    zoom:      11.2,
-    pitch,
-    bearing:   -15,
-    minZoom:   6,
-    maxZoom:   18,
+  const centeredView = useMemo<MapViewState>(() => {
+    const b = thermalOverlay?.bounds;
+    const lon = b ? (b.west + b.east) / 2 : bbox?.length === 4 ? (bbox[0] + bbox[2]) / 2 : 77.59;
+    const lat = b ? (b.south + b.north) / 2 : bbox?.length === 4 ? (bbox[1] + bbox[3]) / 2 : 12.97;
+    return {
+      longitude: lon,
+      latitude:  lat,
+      zoom:      isThermalMode ? 11.8 : 11.2,
+      pitch:     isThermalMode ? 0 : pitch,
+      bearing:   isThermalMode ? 0 : bearing,
+      minZoom:   6,
+      maxZoom:   18,
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cityKey, bbox, pitch]);
+  }, [cityKey, bbox, pitch, bearing, isThermalMode, thermalOverlay]);
 
   /* Use API pixel-aligned grid only — no client-side bbox fallback (misaligns) */
   const displayGrid = useMemo<WardCollection | null>(() => {
@@ -134,32 +417,47 @@ export default function HeatMap({
   const handleGridHover = useCallback((info: PickingInfo) => {
     if (info.object && info.x != null && info.y != null) {
       const p = info.object.properties as WardProperties;
-      const lst = wardSimulations[p.ward_id] ?? displayLst(p);
-      setTooltip({ x: info.x, y: info.y, lst, vuln: p.vulnerability_class, name: p.name });
+      const value = cellValue(p);
+      setTooltip({
+        x: info.x, y: info.y,
+        value,
+        valueLabel: layerConfig.tooltipLabel,
+        formatted: layerConfig.formatValue(value),
+        vuln: p.vulnerability_class,
+        name: p.name,
+      });
     } else {
       setTooltip(null);
     }
-  }, [wardSimulations]);
+  }, [cellValue, layerConfig]);
 
   const handleWardHover = useCallback((info: PickingInfo) => {
     if (!showGrid && info.object && info.x != null && info.y != null) {
       const p = info.object.properties as WardProperties;
-      const lst = wardSimulations[p.ward_id] ?? displayLst(p);
-      setTooltip({ x: info.x, y: info.y, lst, vuln: p.vulnerability_class, name: p.name });
+      const value = cellValue(p);
+      setTooltip({
+        x: info.x, y: info.y,
+        value,
+        valueLabel: layerConfig.tooltipLabel,
+        formatted: layerConfig.formatValue(value),
+        vuln: p.vulnerability_class,
+        name: p.name,
+      });
     } else if (showGrid) {
       setTooltip(null);
     }
-  }, [wardSimulations, showGrid]);
+  }, [cellValue, layerConfig, showGrid]);
 
   /* deck.gl layers */
   const layers = useMemo(() => {
     const out = [];
+    const gridVisible = showGrid && !isThermalMode;
 
     /* ── 3-D extruded regular grid ─────────────────────────────────── */
-    if (showGrid && displayGrid) {
+    if (gridVisible && displayGrid) {
       out.push(
         new GeoJsonLayer<WardProperties>({
-          id:                 `grid-3d-${cityKey}`,
+          id:                 `grid-3d-${cityKey}-${layer}`,
           data:               displayGrid as FeatureCollection<Polygon, WardProperties>,
           pickable:           true,
           stroked:            true,
@@ -171,18 +469,16 @@ export default function HeatMap({
           getLineColor:  [255, 255, 255, 25] as [number,number,number,number],
           getFillColor:  (f) => {
             const p = f.properties as WardProperties;
-            const lst = wardSimulations[p.ward_id] ?? displayLst(p);
-            return tierRgba(lst, 235);
+            const value = cellValue(p);
+            return valueRgba(value, vmin, vmax, layerConfig.ramp, 235);
           },
-          /* height = 0 at 30°C, rises ~2 100 m at 44°C (exaggerated for drama) */
           getElevation:  (f) => {
             const p = f.properties as WardProperties;
-            const lst = wardSimulations[p.ward_id] ?? displayLst(p);
-            return Math.max(0, (lst - 30) * 200);
+            const value = cellValue(p);
+            return valueElevation(value, vmin, vmax, layer);
           },
           elevationScale: 1,
-          updateTriggers: { getFillColor: wardSimulations, getElevation: wardSimulations },
-          transitions:    { getFillColor: 400, getElevation: 400 },
+          updateTriggers: { getFillColor: [wardSimulations, layer, vmin, vmax], getElevation: [wardSimulations, layer, vmin, vmax] },
           onHover:  handleGridHover,
           onClick:  (info: PickingInfo) => {
             if (info.object) onSelectWard(info.object.properties as WardProperties);
@@ -192,8 +488,8 @@ export default function HeatMap({
       );
     }
 
-    /* ── Named ward outlines (labels only when grid hidden) ───────── */
-    if (showDomains && domains) {
+    /* ── Named ward outlines (hidden in thermal satellite view) ───── */
+    if (showDomains && domains && !isThermalMode) {
       out.push(
         new GeoJsonLayer({
           id:                 `wards-${cityKey}`,
@@ -241,7 +537,7 @@ export default function HeatMap({
     }
 
     return out;
-  }, [cityKey, displayGrid, domains, showGrid, showDomains, showHotspots, hotspots, wardSimulations, selectedWard, handleGridHover, handleWardHover, onSelectWard, onMapClick]);
+  }, [cityKey, layer, layerConfig, cellValue, vmin, vmax, displayGrid, domains, showGrid, isThermalMode, showDomains, showHotspots, hotspots, wardSimulations, selectedWard, handleGridHover, handleWardHover, onSelectWard, onMapClick]);
 
   const vulnCls = (v: string) =>
     v === "CRITICAL" ? "text-red-400 font-bold" : v === "HIGH" ? "text-orange-400 font-bold" :
@@ -270,14 +566,23 @@ export default function HeatMap({
         ))}
 
         <div className="my-2 space-y-1.5 border-t border-slate-800 pt-2">
-          <label className="flex cursor-pointer items-center gap-2 text-slate-300">
-            <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="accent-cyan-400" />
-            3-D heat grid
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-slate-300">
-            <input type="checkbox" checked={showDomains} onChange={(e) => setShowDomains(e.target.checked)} className="accent-cyan-400" />
-            Area outlines
-          </label>
+          {!isThermalMode && (
+            <label className="flex cursor-pointer items-center gap-2 text-slate-300">
+              <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="accent-cyan-400" />
+              3-D heat grid
+            </label>
+          )}
+          {isThermalMode && (
+            <p className="text-[10px] text-cyan-400/90 leading-snug">
+              Real Landsat 8 thermal (ST_B10) aligned to satellite imagery. Ocean masked.
+            </p>
+          )}
+          {!isThermalMode && (
+            <label className="flex cursor-pointer items-center gap-2 text-slate-300">
+              <input type="checkbox" checked={showDomains} onChange={(e) => setShowDomains(e.target.checked)} className="accent-cyan-400" />
+              Area outlines
+            </label>
+          )}
           <label className="flex cursor-pointer items-center gap-2 text-slate-300">
             <input type="checkbox" checked={showHotspots} onChange={(e) => setShowHotspots(e.target.checked)} className="accent-red-500" />
             <span className="flex items-center gap-1">
@@ -289,16 +594,20 @@ export default function HeatMap({
 
         <div className="border-t border-slate-800 pt-2">
           <p className="mb-1 text-[10px] uppercase text-slate-500">View angle</p>
-          <div className="flex gap-1">
-            {([0, 30, 45, 60] as number[]).map((p) => (
-              <button key={p} type="button" onClick={() => applyPitch(p)}
-                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  pitch === p ? "bg-cyan-500 text-slate-900" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                }`}>
-                {p === 0 ? "Top" : `${p}°`}
-              </button>
-            ))}
-          </div>
+          {isThermalMode ? (
+            <p className="text-[10px] text-slate-500">North-up satellite view (fixed)</p>
+          ) : (
+            <div className="flex gap-1">
+              {([0, 30, 45, 60] as number[]).map((p) => (
+                <button key={p} type="button" onClick={() => applyPitch(p)}
+                  className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                    pitch === p ? "bg-cyan-500 text-slate-900" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}>
+                  {p === 0 ? "Top" : `${p}°`}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <p className="mt-2 text-[9px] text-slate-500">Drag to rotate · scroll to zoom</p>
       </div>
@@ -387,41 +696,91 @@ export default function HeatMap({
         </div>
       )}
 
-      {/* ── Tier legend ───────────────────────────────────────────────── */}
-      <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-slate-700/60 bg-slate-900/95 px-3 py-2.5 text-[10px] text-slate-200 shadow-2xl backdrop-blur-md">
-        <p className="mb-1.5 font-semibold uppercase tracking-wide text-white">Heat Tiers (LST)</p>
-        {TIERS.map((t) => (
-          <div key={t.key} className="flex items-center gap-2 py-[3px]">
-            <span className="h-3 w-3 shrink-0 rounded-sm"
-              style={{ background: `rgb(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]})` }} />
-            <span className="w-14 font-medium text-slate-300">{t.label}</span>
-            <span className="text-slate-500">{t.range}</span>
+      {/* ── Legend ──────────────────────────────────────────────────── */}
+      {isThermalMode ? (
+        <div className="absolute bottom-3 right-3 z-10 flex items-stretch gap-2 rounded-xl border border-slate-700/60 bg-slate-900/95 px-3 py-2.5 text-[10px] text-slate-200 shadow-2xl backdrop-blur-md">
+          <div className="flex flex-col justify-between py-0.5 text-[9px] font-mono text-slate-400">
+            <span>{vmax.toFixed(0)}</span>
+            <span>{((vmin + vmax) / 2).toFixed(0)}</span>
+            <span>{vmin.toFixed(0)}</span>
           </div>
-        ))}
-        <p className="mt-1.5 text-[9px] text-slate-500">Height ∝ temperature</p>
-      </div>
+          <div
+            className="w-3 rounded-sm"
+            style={{
+              background: `linear-gradient(to top, ${THERMAL_JET_STOPS.map((s) =>
+                `rgb(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]}) ${s.at * 100}%`
+              ).join(", ")})`,
+            }}
+          />
+          <div className="flex flex-col justify-center">
+            <p className="font-semibold uppercase tracking-wide text-white text-[10px]">LST (K)</p>
+            <p className="mt-1 text-[9px] text-slate-500 max-w-[120px] leading-snug">
+              {thermalOverlay?.source ?? "Landsat 8 ST_B10"}
+            </p>
+            {thermalLoading && (
+              <p className="mt-1 text-[9px] text-cyan-400/90 animate-pulse">Loading thermal raster…</p>
+            )}
+            {thermalError && (
+              <p className="mt-1 text-[9px] text-amber-400/90">{thermalError}</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-slate-700/60 bg-slate-900/95 px-3 py-2.5 text-[10px] text-slate-200 shadow-2xl backdrop-blur-md">
+          <p className="mb-1.5 font-semibold uppercase tracking-wide text-white">{layerConfig.legendTitle}</p>
+          <div
+            className="mb-2 h-2.5 w-full rounded-sm"
+            style={{
+              background: `linear-gradient(to right, ${legendItems.map((item, i) => {
+                const pct = (i / Math.max(legendItems.length - 1, 1)) * 100;
+                return `rgb(${item.rgb[0]},${item.rgb[1]},${item.rgb[2]}) ${pct}%`;
+              }).join(", ")})`,
+            }}
+          />
+          <div className="flex justify-between text-[9px] text-slate-500">
+            <span>Low: {legendItems[0]?.label}</span>
+            <span>High: {legendItems[legendItems.length - 1]?.label}</span>
+          </div>
+          <p className="mt-1.5 text-[9px] text-slate-500">{layerConfig.heightNote}</p>
+        </div>
+      )}
 
       {/* ── Hover tooltip ─────────────────────────────────────────────── */}
       {tooltip && (
         <div className="pointer-events-none absolute z-20 rounded-lg border border-slate-700/60 bg-slate-950/95 px-2.5 py-1.5 text-xs text-slate-200 shadow-2xl backdrop-blur-sm"
           style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}>
           <p className="font-semibold text-white">{tooltip.name}</p>
-          <p className="text-slate-400 mt-0.5">LST: <span className="font-mono text-white font-bold">{tooltip.lst.toFixed(1)}°C</span></p>
+          <p className="text-slate-400 mt-0.5">{tooltip.valueLabel}: <span className="font-mono text-white font-bold">{tooltip.formatted}</span></p>
           <p className={`font-semibold text-[10px] mt-0.5 ${vulnCls(tooltip.vuln)}`}>{tooltip.vuln}</p>
         </div>
       )}
 
       {/* ── DeckGL canvas ─────────────────────────────────────────────── */}
       <DeckGL
-        key={cityKey}
+        key={`${cityKey}-${layer}`}
         initialViewState={centeredView}
         viewState={viewState}
         onViewStateChange={({ viewState: vs }) => setViewState(vs as MapViewState)}
-        controller={{ dragRotate: true, touchRotate: true, keyboard: true }}
+        controller={{ dragRotate: !isThermalMode, touchRotate: !isThermalMode, keyboard: true }}
         layers={layers}
         style={{ position: "absolute", top: "0", left: "0", right: "0", bottom: "0" }}
       >
-        <Map mapStyle={MAP_STYLE} />
+        <Map mapStyle={isThermalMode ? SATELLITE_MAP_STYLE : MAP_STYLE}>
+          {isThermalMode && thermalImageCoords && (
+            <Source
+              id="thermal-satellite"
+              type="image"
+              url={`${thermalOverlayUrl(cityKey)}?v=${thermalOverlay?.width ?? 0}`}
+              coordinates={thermalImageCoords}
+            >
+              <MapLayerGL
+                id="thermal-satellite-layer"
+                type="raster"
+                paint={{ "raster-opacity": 0.9, "raster-fade-duration": 0 }}
+              />
+            </Source>
+          )}
+        </Map>
       </DeckGL>
     </div>
   );

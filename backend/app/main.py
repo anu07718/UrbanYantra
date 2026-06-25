@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.app.services import city_data, heatmap, model_inference
+from backend.app.services import city_data, heatmap, model_inference, thermal_overlay
+from backend.app.services.report_generator import generate_report
 
 app = FastAPI(
     title="UrbanCool API",
@@ -122,6 +123,52 @@ def heatmap_meta(city_key: str, layer: str):
         raise HTTPException(500, str(e)) from e
 
 
+@app.get("/cities/{city_key}/thermal/overlay/meta")
+def city_thermal_overlay_meta(city_key: str):
+    """Georeferenced Landsat thermal overlay metadata (corner coordinates, Kelvin scale)."""
+    try:
+        return thermal_overlay.get_thermal_overlay_meta(city_key)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/thermal/overlay.png")
+def city_thermal_overlay_png(city_key: str):
+    """RGBA thermal satellite overlay PNG aligned to Landsat georef."""
+    try:
+        png = thermal_overlay.get_thermal_overlay_png(city_key)
+        return Response(content=png, media_type="image/png")
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/thermal/tiles")
+def city_thermal_tiles(city_key: str):
+    """Deprecated — use /thermal/overlay/meta. Kept for backwards compatibility."""
+    try:
+        meta = thermal_overlay.get_thermal_overlay_meta(city_key)
+        b = meta["bounds"]
+        return {
+            "city_key": city_key,
+            "tile_url": "",
+            "vmin_k": meta["vmin_k"],
+            "vmax_k": meta["vmax_k"],
+            "unit": "K",
+            "source": meta["source"],
+            "bounds": b,
+            "overlay_url": f"/cities/{city_key}/thermal/overlay.png",
+            "coordinates": meta["coordinates"],
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
 @app.get("/cities/{city_key}/sample-points")
 def sample_points(city_key: str, stride: int = Query(2, ge=1, le=12)):
     try:
@@ -170,6 +217,23 @@ def climate_projection(city_key: str):
         raise HTTPException(404, str(e)) from e
     except Exception as e:
         raise HTTPException(500, str(e)) from e
+
+
+@app.get("/cities/{city_key}/report")
+def city_report(city_key: str):
+    """Generate and return a comprehensive PDF report for the city."""
+    try:
+        pdf_bytes = generate_report(city_key)
+        filename = f"UrbanCool_{city_key}_report.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, f"Report generation failed: {e}") from e
 
 
 @app.get("/cities/{city_key}/model-metrics")

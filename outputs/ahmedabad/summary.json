@@ -1,0 +1,8 @@
+{
+  "city_key": "Ahmedabad",
+  "city_name": "Ahmedabad",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 12480,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\ahmedabad"
+}

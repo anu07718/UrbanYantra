@@ -140,6 +140,13 @@ def _city_out_dir(city_key: str) -> Path:
     return ROOT / cfg["output_dir"]
 
 
+def _load_city_provenance(city_key: str) -> dict[str, Any]:
+    summary_path = _city_out_dir(city_key) / "summary.json"
+    if summary_path.exists():
+        return json.loads(summary_path.read_text(encoding="utf-8"))
+    return {}
+
+
 def _data_bbox(city_key: str) -> list[float] | None:
     """Extent of visible urban pixels (non-rectangular), padded slightly."""
     try:
@@ -189,12 +196,17 @@ def get_city_summary(city_key: str) -> dict[str, Any]:
     land_df = visible_pixels(df)
     land_lst = float(land_df["lst_c"].mean()) if len(land_df) else avg_lst
     cal = get_station_calibration(city_key)
+    provenance = _load_city_provenance(city_key)
+    data_mode = provenance.get("data_mode", cfg.get("data_mode", "gee"))
     return {
         "city_key": city_key,
         "city_name": cfg["city_name"],
         "bbox": data_bbox,
         "config_bbox": cfg["bbox"],
-        "data_mode": cfg.get("data_mode", "synthetic"),
+        "data_mode": data_mode,
+        "is_real_data": provenance.get("is_real_data", data_mode == "gee"),
+        "data_sources": provenance.get("data_sources", {}),
+        "artifacts_present": provenance.get("artifacts_present", {}),
         "grid_resolution_m": cfg.get("target_resolution_m", 10),
         "calibration": {
             "bias_c": cal.get("bias_c", 0.0),
@@ -454,11 +466,7 @@ def get_cooling_potential(city_key: str) -> list[dict[str, Any]]:
             }
             for _, row in grouped.iterrows()
         ]
-    return [
-        {"strategy": "Cool Roofs", "delta_t_c": 1.2},
-        {"strategy": "Urban Greening", "delta_t_c": 1.8},
-        {"strategy": "Blue Infra", "delta_t_c": 1.5},
-    ]
+    return []
 
 
 def get_ranking(city_key: str, limit: int = 30) -> list[dict[str, Any]]:
@@ -474,11 +482,12 @@ def get_ranking(city_key: str, limit: int = 30) -> list[dict[str, Any]]:
 
 
 def get_climate_projection(city_key: str) -> list[dict[str, Any]]:
+    """Trend projection from pipeline baseline LST (not a stochastic forecast)."""
     df = _load_feature_table(city_key)
     base = float(df["lst_c"].mean())
     years = list(range(2020, 2051, 5))
     return [
-        {"year": y, "lst_c": round(base + (y - 2020) * 0.12 + math.sin(y / 8) * 0.3, 2)}
+        {"year": y, "lst_c": round(base + (y - 2020) * 0.12, 2)}
         for y in years
     ]
 
@@ -528,16 +537,22 @@ def run_scenario(
     }
 
 
+def _ward_cooling_weight(ward_id: str) -> float:
+    """Deterministic per-ward cooling weight from ward id (no RNG)."""
+    return 0.7 + 0.3 * ((hash(ward_id) % 100) / 100.0)
+
+
 def _apply_scenario_to_wards(city_key: str, cooling_c: float) -> list[dict[str, Any]]:
     wards = build_ward_geojson(city_key, rows=5, cols=4)["features"]
     updates = []
     for f in wards:
         p = f["properties"]
+        weight = _ward_cooling_weight(p["ward_id"])
         updates.append(
             {
                 "ward_id": p["ward_id"],
-                "simulated_lst_c": round(p["avg_lst_c"] - cooling_c * (0.7 + 0.3 * np.random.default_rng(hash(p["ward_id"]) % 2**32).random()), 2),
-                "cooling_delta_c": round(cooling_c, 2),
+                "simulated_lst_c": round(p["avg_lst_c"] - cooling_c * weight, 2),
+                "cooling_delta_c": round(cooling_c * weight, 2),
             }
         )
     return updates

@@ -283,7 +283,9 @@ export default function Dashboard() {
           <span className="text-[10px] text-slate-500">
             Data:{" "}
             <span className={summary.data_mode === "gee" ? "text-green-400" : "text-amber-400"}>
-              {summary.data_mode === "gee" ? "Landsat/GEE (real)" : "synthetic demo"}
+              {summary.data_mode === "gee" || summary.is_real_data
+                ? "Satellite + ERA5 (real)"
+                : "Run pipeline with --data-mode gee"}
             </span>
             {summary.data_mode !== "gee" && (
               <> · For real LST: <code className="text-cyan-500">py run_pipeline.py --city {cityKey} --data-mode gee</code></>
@@ -315,7 +317,7 @@ export default function Dashboard() {
         <main className="relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
           {summary && (
             <HeatMap
-              key={`${cityKey}-${summary.bbox.join(",")}`}
+              key={`${cityKey}-${mapLayer}-${summary.bbox.join(",")}`}
               cityKey={cityKey}
               cityName={summary.city_name}
               domains={domains}

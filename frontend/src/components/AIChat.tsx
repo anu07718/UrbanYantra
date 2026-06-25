@@ -94,6 +94,12 @@ export default function AIChat({ cityKey, cityName }: AIChatProps) {
       ...prev,
       { id: `u-${Date.now()}`, sender: "user", text },
     ]);
+
+    if (/generate\s+(pdf\s+)?report|download\s+(pdf\s+)?report/i.test(text)) {
+      await handleDownloadReport();
+      return;
+    }
+
     setLoading(true);
 
     try {

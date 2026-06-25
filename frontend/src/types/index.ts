@@ -25,6 +25,9 @@ export interface CitySummary {
     co2_sequestration_tons_yr: number;
     total_investment_m_usd: number;
   };
+  is_real_data?: boolean;
+  data_sources?: Record<string, string>;
+  artifacts_present?: Record<string, boolean>;
 }
 
 export interface WardProperties {
@@ -38,8 +41,10 @@ export interface WardProperties {
   ndbi: number;
   vulnerability_class: string;
   hotspot_fraction: number;
+  impervious_frac?: number;
   lst_calibrated_c?: number;
   boundary_source?: string;
+  hotspot_class?: number;
 }
 
 export interface WardFeature {
@@ -62,6 +67,33 @@ export interface HeatmapMeta {
   width: number;
   height: number;
   grid_step: number;
+  unit?: string;
+  source?: string;
+}
+
+export interface ThermalOverlayMeta {
+  city_key: string;
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  bounds: { west: number; south: number; east: number; north: number };
+  vmin_k: number;
+  vmax_k: number;
+  unit: string;
+  source: string;
+  width: number;
+  height: number;
+}
+
+export interface ThermalTilesMeta {
+  city_key: string;
+  tile_url: string;
+  vmin_k: number;
+  vmax_k: number;
+  unit: string;
+  source: string;
+  palette?: string[];
+  bounds: { west: number; south: number; east: number; north: number };
+  coordinates?: [[number, number], [number, number], [number, number], [number, number]];
+  overlay_url?: string;
 }
 
 export interface SamplePoint {
@@ -107,7 +139,7 @@ export interface ScenarioResult {
   ward_updates: { ward_id: string; simulated_lst_c: number; cooling_delta_c: number }[];
 }
 
-export type MapLayer = "lst" | "utci" | "ndvi" | "svf" | "vulnerability";
+export type MapLayer = "lst" | "thermal" | "utci" | "ndvi" | "svf" | "vulnerability";
 
 export interface SimulationState {
   coolRoofs: number;

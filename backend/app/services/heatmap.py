@@ -19,6 +19,8 @@ from geography.ward_seeds import nearest_ward_name as _nearest_ward_name
 from features.display_pixels import visible_pixels
 from utils import load_city_config
 
+from backend.app.services.thermal_mask import data_bbox_from_pixels, land_visible_mask
+
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -85,10 +87,30 @@ def _raster_bounds(city_key: str, df: pd.DataFrame | None = None) -> tuple[float
     )
 
 
+def _thermal_kelvin_array(city_key: str, df: pd.DataFrame) -> np.ndarray:
+    """Kelvin LST from raw Landsat export or pipeline rasters (fallback PNG overlay)."""
+    out_dir = _city_out_dir(city_key)
+    raw_k = out_dir / "raw" / "landsat_lst_raw.tif"
+    if raw_k.exists():
+        return _read_raster(raw_k)
+
+    raster_dir = out_dir / "rasters"
+    for name in ("landsat_lst_c.tif", "lst_10m.tif"):
+        path = raster_dir / name
+        if path.exists():
+            return _read_raster(path) + 273.15
+
+    col = "lst_calibrated_c" if "lst_calibrated_c" in df.columns else "lst_c"
+    return _grid_from_column(df, col) + 273.15
+
+
 def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
     raster_dir = _city_out_dir(city_key) / "rasters"
     h = int(df["row"].max()) + 1
     w = int(df["col"].max()) + 1
+
+    if layer == "thermal":
+        return _thermal_kelvin_array(city_key, df)
 
     raster_layers = {
         "lst": "lst_10m.tif",
@@ -98,9 +120,10 @@ def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
         try:
             return _read_raster(raster_dir / raster_layers[layer])
         except FileNotFoundError:
-            col = "lst_calibrated_c" if layer == "lst" and "lst_calibrated_c" in df.columns else (
-                "lst_c" if layer == "lst" else "ndvi"
-            )
+            if layer == "lst":
+                col = "lst_calibrated_c" if "lst_calibrated_c" in df.columns else "lst_c"
+            else:
+                col = "ndvi"
             return _grid_from_column(df, col)
 
     if layer == "utci":
@@ -132,6 +155,8 @@ def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
 
 
 def _colormap_for_layer(layer: str):
+    if layer == "thermal":
+        return "jet"
     if layer == "ndvi":
         return "YlGn"
     if layer == "svf":
@@ -145,11 +170,17 @@ def _colormap_for_layer(layer: str):
 def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
     df = _load_feature_table(city_key)
     arr = _layer_array(city_key, layer, df)
-    valid = arr[np.isfinite(arr)]
+
+    if layer == "thermal":
+        land = land_visible_mask(df, arr.shape)
+        valid = arr[land & np.isfinite(arr)]
+    else:
+        valid = arr[np.isfinite(arr)]
+
     vmin = float(np.percentile(valid, 2)) if valid.size else 0.0
     vmax = float(np.percentile(valid, 98)) if valid.size else 1.0
     left, bottom, right, top = _raster_bounds(city_key, df)
-    return {
+    meta: dict[str, Any] = {
         "layer": layer,
         "bounds": [[bottom, left], [top, right]],
         "vmin": round(vmin, 2),
@@ -158,6 +189,16 @@ def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
         "height": int(arr.shape[0]),
         "grid_step": DEFAULT_GRID_STEP,
     }
+    if layer == "thermal":
+        meta["unit"] = "K"
+        meta["source"] = "Landsat 8 ST_B10"
+        display_bbox = data_bbox_from_pixels(city_key)
+        if display_bbox:
+            meta["display_bounds"] = [
+                [display_bbox[1], display_bbox[0]],
+                [display_bbox[3], display_bbox[2]],
+            ]
+    return meta
 
 
 def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
@@ -165,7 +206,7 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
     out_dir = _city_out_dir(city_key)
     maps_dir = out_dir / "maps"
     maps_dir.mkdir(parents=True, exist_ok=True)
-    cache = maps_dir / f"overlay_{layer}.png"
+    cache = maps_dir / ("overlay_thermal_masked.png" if layer == "thermal" else f"overlay_{layer}.png")
 
     df = _load_feature_table(city_key)
     arr = _layer_array(city_key, layer, df)
@@ -181,6 +222,10 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
     cmap = _colormap_for_layer(layer)
     norm_arr = np.flipud(arr)  # align PNG with geographic north-up for Leaflet
 
+    if layer == "thermal":
+        land = np.flipud(land_visible_mask(df, arr.shape))
+        norm_arr = np.where(land, norm_arr, np.nan)
+
     fig = plt.figure(figsize=(norm_arr.shape[1] / 72, norm_arr.shape[0] / 72), dpi=72)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.imshow(
@@ -188,12 +233,12 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
         cmap=cmap,
         vmin=meta["vmin"],
         vmax=meta["vmax"],
-        interpolation="bilinear",
+        interpolation="nearest" if layer == "thermal" else "bilinear",
         aspect="auto",
     )
     ax.axis("off")
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", transparent=False, pad_inches=0)
+    fig.savefig(buf, format="png", transparent=(layer == "thermal"), pad_inches=0)
     plt.close(fig)
     png_bytes = buf.getvalue()
     cache.write_bytes(png_bytes)
@@ -247,6 +292,8 @@ def build_fine_grid_geojson(
         agg_kwargs["humidity_proxy"] = ("humidity_proxy", "mean")
     if "gi_star_z" in grouped_df.columns:
         agg_kwargs["gi_star_z"] = ("gi_star_z", "mean")
+    if "impervious_frac" in grouped_df.columns:
+        agg_kwargs["impervious_frac"] = ("impervious_frac", "mean")
     if "is_water" in grouped_df.columns:
         agg_kwargs["is_water"] = ("is_water", "mean")
 
@@ -263,6 +310,9 @@ def build_fine_grid_geojson(
         avg_raw = float(np.nan_to_num(block.lst_sat, nan=avg_lst))
         avg_ndvi = float(np.nan_to_num(block.ndvi, nan=0.3))
         avg_ndbi = float(np.nan_to_num(block.ndbi, nan=0.1))
+        avg_imp = float(np.nan_to_num(getattr(block, "impervious_frac", np.nan), nan=np.nan))
+        if not np.isfinite(avg_imp):
+            avg_imp = float(np.clip(1.0 - avg_ndvi, 0.0, 1.0))
         hotspot_frac = float(np.nan_to_num(block.hotspot_flag, nan=0.0))
         humidity = float(np.nan_to_num(getattr(block, "humidity_proxy", 0.55), nan=0.55))
         utci = float(np.nan_to_num(avg_lst * 0.72 + humidity * 8.0 - 2.5, nan=35.0))
@@ -310,6 +360,7 @@ def build_fine_grid_geojson(
                     "cooling_delta_c": 0.0,
                     "ndvi": round(np.nan_to_num(avg_ndvi, nan=0.3), 3),
                     "ndbi": round(np.nan_to_num(avg_ndbi, nan=0.1), 3),
+                    "impervious_frac": round(np.nan_to_num(avg_imp, nan=0.5), 3),
                     "vulnerability_class": vuln,
                     "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
                     "hotspot_class": int(getattr(block, "hotspot_class", 0)),

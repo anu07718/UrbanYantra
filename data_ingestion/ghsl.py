@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from data_ingestion.cache import save_geotiff
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source
 from utils import synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,10 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
                 paths[key].write_bytes(resp.content)
             return paths
         except Exception as exc:
-            logger.warning("GHSL GEE failed: %s — synthetic.", exc)
+            require_real_source(config, "GHSL", exc)
+
+    if is_real_data_mode(config):
+        raise RuntimeError("GHSL unavailable in gee mode")
 
     height, pop = generate_synthetic_ghsl(synthetic_grid_shape(config))
     save_geotiff(height, paths["building_height"], config["bbox"])

@@ -1,0 +1,8 @@
+{
+  "city_key": "Bengaluru",
+  "city_name": "Bengaluru",
+  "data_mode": "gee",
+  "num_features": 36,
+  "num_samples": 11280,
+  "output_dir": "C:\\Users\\Admin\\Desktop\\UrbanCool\\outputs\\bengaluru"
+}

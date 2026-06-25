@@ -10,7 +10,8 @@ import rasterio
 
 from data_ingestion.cache import save_geotiff
 from data_ingestion.gee_client import get_study_region, init_gee
-from utils import synthetic_grid_shape
+from data_ingestion.data_provenance import is_real_data_mode, require_real_source
+from utils import grid_shape_from_bbox, synthetic_grid_shape
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,12 @@ def generate_synthetic_lulc(shape: tuple[int, int] = (120, 120)) -> np.ndarray:
 
 def ingest_worldcover(config: dict, out_dir: Path) -> Path:
     out_path = out_dir / "rasters" / "worldcover.tif"
-    expected_shape = synthetic_grid_shape(config) if config.get("data_mode", "synthetic") == "synthetic" else None
+    expected_shape = (
+        synthetic_grid_shape(config)
+        if config.get("data_mode", "synthetic") == "synthetic"
+        else grid_shape_from_bbox(config["bbox"], config.get("target_resolution_m", 10))
+    )
     if out_path.exists() and not config.get("force_refresh"):
-        if expected_shape is None:
-            return out_path
         with rasterio.open(out_path) as src:
             if (src.height, src.width) == expected_shape:
                 return out_path
@@ -58,9 +61,10 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
                 .select("Map")
                 .clip(get_study_region(config["bbox"]))
             )
+            export_scale = max(int(config.get("target_resolution_m", 10)), 10)
             url = wc.getDownloadURL(
                 {
-                    "scale": config.get("target_resolution_m", 10),
+                    "scale": export_scale,
                     "crs": config.get("crs", "EPSG:4326"),
                     "region": get_study_region(config["bbox"]),
                     "format": "GEO_TIFF",
@@ -72,7 +76,10 @@ def ingest_worldcover(config: dict, out_dir: Path) -> Path:
             out_path.write_bytes(resp.content)
             return out_path
         except Exception as exc:
-            logger.warning("WorldCover GEE failed: %s — synthetic.", exc)
+            require_real_source(config, "ESA WorldCover", exc)
+
+    if is_real_data_mode(config):
+        raise RuntimeError("WorldCover unavailable in gee mode")
 
     lulc = generate_synthetic_lulc(synthetic_grid_shape(config))
     save_geotiff(lulc.astype(np.float32), out_path, config["bbox"], nodata=0)

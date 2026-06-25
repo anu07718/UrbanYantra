@@ -1,11 +1,13 @@
 // API base URL
 // - Local dev: localhost:8000
-// - Vercel prod: set NEXT_PUBLIC_API_BASE to your Render URL (e.g. https://urbancool-api.onrender.com)
+// - Vercel prod: NEXT_PUBLIC_API_BASE (or default Render URL below)
+const PRODUCTION_API_BASE = "https://urbancool-api.onrender.com";
+
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_BASE || process.env.BACKEND_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, "");
   if (process.env.NODE_ENV === "development") return "http://localhost:8000";
-  return "";
+  return PRODUCTION_API_BASE;
 }
 
 export const apiBase = resolveApiBase();

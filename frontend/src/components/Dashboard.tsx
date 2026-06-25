@@ -312,7 +312,7 @@ export default function Dashboard() {
           baselineLst={summary?.metrics?.avg_city_lst_c}
         />
 
-        <main className="relative flex min-w-0 flex-1 overflow-hidden">
+        <main className="relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
           {summary && (
             <HeatMap
               key={`${cityKey}-${summary.bbox.join(",")}`}

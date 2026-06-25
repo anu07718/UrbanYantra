@@ -256,7 +256,7 @@ export default function HeatMap({
   };
 
   return (
-    <div className="relative min-h-0 flex-1">
+    <div className="relative h-full min-h-0 w-full flex-1">
 
       {/* ── Controls ──────────────────────────────────────────────────── */}
       <div className="absolute left-3 top-3 z-10 max-h-[80vh] overflow-y-auto rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-xs shadow-2xl text-slate-200 backdrop-blur-md">

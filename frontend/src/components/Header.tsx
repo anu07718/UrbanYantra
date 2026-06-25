@@ -1,6 +1,7 @@
 "use client";
 
-import { Leaf, Shield, Thermometer, Zap, Coins } from "lucide-react";
+import Link from "next/link";
+import { Leaf, Satellite, Shield, Thermometer, Zap, Coins } from "lucide-react";
 import type { CitySummary } from "@/types";
 
 /* ── Heat status thresholds ─────────────────────────────────────────────── */
@@ -70,8 +71,8 @@ export default function Header({ summary, scenarioMetrics }: HeaderProps) {
 
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/30 to-orange-500/20 text-xl">
-            🛰️
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white overflow-hidden p-0.5">
+            <img src="/logo.png" alt="UrbanCool Logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -154,6 +155,23 @@ export default function Header({ summary, scenarioMetrics }: HeaderProps) {
               </span>
             }
           />
+
+          {/* Thermal Analytics Action */}
+          <Link
+            href="/thermal-analytics"
+            className="flex min-w-[180px] items-center gap-2.5 rounded-lg border border-cyan-500/40 bg-gradient-to-r from-cyan-600/20 to-orange-500/15 px-4 py-2.5 transition-all hover:from-cyan-600/30 hover:to-orange-500/25 hover:border-cyan-400/60 hover:shadow-lg hover:shadow-cyan-500/10 group"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500/30 to-orange-500/20">
+              <Satellite size={16} className="text-cyan-300" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-cyan-300 group-hover:text-cyan-200">
+                Thermal Satellite Image Analytics
+              </div>
+              <div className="text-[10px] text-slate-400">AI-powered heat intelligence →</div>
+            </div>
+            <span className="ml-auto text-lg text-cyan-400 group-hover:text-cyan-300">+</span>
+          </Link>
         </div>
       </div>
     </header>

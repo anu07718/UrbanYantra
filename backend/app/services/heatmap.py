@@ -14,7 +14,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import rasterio
 
 from geography.ward_seeds import nearest_ward_name as _nearest_ward_name
 from features.display_pixels import visible_pixels
@@ -30,12 +29,34 @@ MAX_GRID_FEATURES = 14400
 MAX_SAMPLE_POINTS = 12000
 
 
+def _try_import_rasterio():
+    try:
+        import rasterio
+
+        return rasterio
+    except ImportError:
+        return None
+
+
+def _grid_from_column(df: pd.DataFrame, column: str) -> np.ndarray:
+    """Build a row×col raster from the feature table (no GDAL)."""
+    h = int(df["row"].max()) + 1
+    w = int(df["col"].max()) + 1
+    arr = np.full((h, w), np.nan, dtype=np.float32)
+    for _, row in df.iterrows():
+        arr[int(row["row"]), int(row["col"])] = float(row[column])
+    return arr
+
+
 def _city_out_dir(city_key: str) -> Path:
     cfg = load_city_config(ROOT / "configs" / "cities.yaml", city_key)
     return ROOT / cfg["output_dir"]
 
 
 def _read_raster(path: Path) -> np.ndarray:
+    rasterio = _try_import_rasterio()
+    if rasterio is None or not path.exists():
+        raise FileNotFoundError(path)
     with rasterio.open(path) as src:
         return src.read(1).astype(np.float32)
 
@@ -45,11 +66,23 @@ def _load_feature_table(city_key: str) -> pd.DataFrame:
     return pd.read_parquet(_city_out_dir(city_key) / "tables" / "feature_table.parquet")
 
 
-def _raster_bounds(city_key: str) -> tuple[float, float, float, float]:
-    path = _city_out_dir(city_key) / "rasters" / "lst_10m.tif"
-    with rasterio.open(path) as src:
-        b = src.bounds
-        return float(b.left), float(b.bottom), float(b.right), float(b.top)
+def _raster_bounds(city_key: str, df: pd.DataFrame | None = None) -> tuple[float, float, float, float]:
+    raster_dir = _city_out_dir(city_key) / "rasters"
+    lst_tif = raster_dir / "lst_10m.tif"
+    rasterio = _try_import_rasterio()
+    if rasterio is not None and lst_tif.exists():
+        with rasterio.open(lst_tif) as src:
+            b = src.bounds
+            return float(b.left), float(b.bottom), float(b.right), float(b.top)
+
+    table = df if df is not None else _load_feature_table(city_key)
+    pad = 0.001
+    return (
+        float(table["lon"].min()) - pad,
+        float(table["lat"].min()) - pad,
+        float(table["lon"].max()) + pad,
+        float(table["lat"].max()) + pad,
+    )
 
 
 def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
@@ -57,26 +90,45 @@ def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
     h = int(df["row"].max()) + 1
     w = int(df["col"].max()) + 1
 
-    if layer == "lst":
-        return _read_raster(raster_dir / "lst_10m.tif")
-    if layer == "ndvi":
-        return _read_raster(raster_dir / "ndvi.tif")
+    raster_layers = {
+        "lst": "lst_10m.tif",
+        "ndvi": "ndvi.tif",
+    }
+    if layer in raster_layers:
+        try:
+            return _read_raster(raster_dir / raster_layers[layer])
+        except FileNotFoundError:
+            col = "lst_calibrated_c" if layer == "lst" and "lst_calibrated_c" in df.columns else (
+                "lst_c" if layer == "lst" else "ndvi"
+            )
+            return _grid_from_column(df, col)
+
     if layer == "utci":
-        lst = _read_raster(raster_dir / "lst_10m.tif")
+        try:
+            lst = _read_raster(raster_dir / "lst_10m.tif")
+        except FileNotFoundError:
+            lst_col = "lst_calibrated_c" if "lst_calibrated_c" in df.columns else "lst_c"
+            lst = _grid_from_column(df, lst_col)
         humidity = float(df.get("humidity_proxy", pd.Series([0.55])).mean())
         return lst * 0.72 + humidity * 8.0 - 2.5
-    if layer == "svf":
-        imp = raster_dir / "impervious_frac.tif"
-        if imp.exists():
-            return _read_raster(imp)
-        return _read_raster(raster_dir / "ndbi.tif")
-    if layer == "vulnerability":
-        hs = np.zeros((h, w), dtype=np.float32)
-        for _, row in df.iterrows():
-            hs[int(row["row"]), int(row["col"])] = float(row["hotspot_class"])
-        return hs
 
-    return _read_raster(raster_dir / "lst_10m.tif")
+    if layer == "svf":
+        for name in ("impervious_frac.tif", "ndbi.tif"):
+            try:
+                return _read_raster(raster_dir / name)
+            except FileNotFoundError:
+                continue
+        col = "impervious_frac" if "impervious_frac" in df.columns else "ndbi"
+        return _grid_from_column(df, col)
+
+    if layer == "vulnerability":
+        return _grid_from_column(df, "hotspot_class")
+
+    try:
+        return _read_raster(raster_dir / "lst_10m.tif")
+    except FileNotFoundError:
+        lst_col = "lst_calibrated_c" if "lst_calibrated_c" in df.columns else "lst_c"
+        return _grid_from_column(df, lst_col)
 
 
 def _colormap_for_layer(layer: str):
@@ -96,7 +148,7 @@ def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
     valid = arr[np.isfinite(arr)]
     vmin = float(np.percentile(valid, 2)) if valid.size else 0.0
     vmax = float(np.percentile(valid, 98)) if valid.size else 1.0
-    left, bottom, right, top = _raster_bounds(city_key)
+    left, bottom, right, top = _raster_bounds(city_key, df)
     return {
         "layer": layer,
         "bounds": [[bottom, left], [top, right]],
@@ -119,7 +171,11 @@ def get_heatmap_png(city_key: str, layer: str = "lst") -> bytes:
     arr = _layer_array(city_key, layer, df)
     meta = get_heatmap_meta(city_key, layer)
 
-    if cache.exists() and cache.stat().st_mtime > (out_dir / "rasters" / "lst_10m.tif").stat().st_mtime:
+    lst_tif = out_dir / "rasters" / "lst_10m.tif"
+    parquet = out_dir / "tables" / "feature_table.parquet"
+    source_mtime = lst_tif.stat().st_mtime if lst_tif.exists() else parquet.stat().st_mtime
+
+    if cache.exists() and cache.stat().st_mtime > source_mtime:
         return cache.read_bytes()
 
     cmap = _colormap_for_layer(layer)

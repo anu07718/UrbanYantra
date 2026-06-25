@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from backend.app.services.city_data import _load_feature_table, _city_out_dir
-from features.build_feature_table import FEATURE_COLUMNS
+from features.feature_columns import FEATURE_COLUMNS
 
 HOTSPOT_LABELS = {0: "normal", 1: "moderate", 2: "severe"}
 

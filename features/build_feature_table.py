@@ -10,6 +10,7 @@ import pandas as pd
 import rasterio
 
 from data_ingestion.cache import save_geotiff, save_parquet
+from features.feature_columns import FEATURE_COLUMNS
 from features.hotspot_detection import classify_hotspots_from_gi, getis_ord_gi_star
 from features.lcz_proxy import derive_lcz_proxy
 from features.morphology import compute_morphology_rasters
@@ -17,31 +18,6 @@ from features.temporal import summarize_meteo_for_pixels
 from features.urban_mask import apply_urban_extent_mask
 
 logger = logging.getLogger(__name__)
-
-FEATURE_COLUMNS = [
-    "ndvi",
-    "ndbi",
-    "ndwi",
-    "utfvi",
-    "building_density",
-    "road_density",
-    "dist_green_m",
-    "dist_water_m",
-    "impervious_frac",
-    "vegetation_frac",
-    "building_height",
-    "population",
-    "temp_2m_c",
-    "dewpoint_c",
-    "humidity_proxy",
-    "wind_ms",
-    "solar_radiation_wm2",
-    "hour",
-    "month",
-    "season",
-    "heatwave_flag",
-    "lcz_class",
-]
 
 
 def _read_raster(path: Path) -> np.ndarray:

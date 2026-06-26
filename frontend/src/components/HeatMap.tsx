@@ -152,7 +152,7 @@ const LAYER_CONFIG: Record<MapLayer, {
   heightNote: string;
   unit: string;
   ramp: ColorStop[];
-  getValue: (p: WardProperties, wardSim: Record<string, number>) => number;
+  getValue: (p: WardProperties, wardSim: Record<string, number>, domains?: WardCollection | null, cityKey?: string) => number;
   formatValue: (v: number) => string;
   tooltipLabel: string;
   defaultBounds: [number, number];
@@ -162,7 +162,23 @@ const LAYER_CONFIG: Record<MapLayer, {
     heightNote: "Height ∝ temperature",
     unit: "°C",
     ramp: LAYER_RAMPS.lst,
-    getValue: (p, wardSim) => wardSim[p.ward_id] ?? (p.lst_calibrated_c ?? p.avg_lst_c),
+    getValue: (p, wardSim, domains, cityKey) => {
+      if (wardSim[p.ward_id] !== undefined) return wardSim[p.ward_id];
+      if (p.name && cityKey && domains) {
+        const suffix = `_${p.name.toLowerCase().replace(/ /g, '_')}`;
+        const matchKey = Object.keys(wardSim).find((k) => k.endsWith(suffix));
+        if (matchKey && wardSim[matchKey] !== undefined) {
+          const simVal = wardSim[matchKey];
+          const wardFeature = domains.features.find((f) => f.properties.ward_id === matchKey);
+          if (wardFeature) {
+            const baseVal = wardFeature.properties.lst_calibrated_c ?? wardFeature.properties.avg_lst_c;
+            const delta = Math.max(0, baseVal - simVal);
+            return (p.lst_calibrated_c ?? p.avg_lst_c) - delta;
+          }
+        }
+      }
+      return p.lst_calibrated_c ?? p.avg_lst_c;
+    },
     formatValue: (v) => `${v.toFixed(1)}°C`,
     tooltipLabel: "LST",
     defaultBounds: [32, 44],
@@ -172,9 +188,23 @@ const LAYER_CONFIG: Record<MapLayer, {
     heightNote: "Satellite thermal raster (Landsat ST_B10)",
     unit: " K",
     ramp: THERMAL_JET_STOPS,
-    getValue: (p, wardSim) => {
-      const c = wardSim[p.ward_id] ?? (p.lst_calibrated_c ?? p.avg_lst_c);
-      return c + 273.15;
+    getValue: (p, wardSim, domains, cityKey) => {
+      if (wardSim[p.ward_id] !== undefined) return wardSim[p.ward_id] + 273.15;
+      let temp = p.lst_calibrated_c ?? p.avg_lst_c;
+      if (p.name && cityKey && domains) {
+        const suffix = `_${p.name.toLowerCase().replace(/ /g, '_')}`;
+        const matchKey = Object.keys(wardSim).find((k) => k.endsWith(suffix));
+        if (matchKey && wardSim[matchKey] !== undefined) {
+          const simVal = wardSim[matchKey];
+          const wardFeature = domains.features.find((f) => f.properties.ward_id === matchKey);
+          if (wardFeature) {
+            const baseVal = wardFeature.properties.lst_calibrated_c ?? wardFeature.properties.avg_lst_c;
+            const delta = Math.max(0, baseVal - simVal);
+            temp = temp - delta;
+          }
+        }
+      }
+      return temp + 273.15;
     },
     formatValue: (v) => `${v.toFixed(1)} K`,
     tooltipLabel: "LST",
@@ -185,7 +215,23 @@ const LAYER_CONFIG: Record<MapLayer, {
     heightNote: "Height ∝ heat stress",
     unit: "°C UTCI",
     ramp: LAYER_RAMPS.utci,
-    getValue: (p) => p.heat_stress_utci_c,
+    getValue: (p, wardSim, domains, cityKey) => {
+      let utci = p.heat_stress_utci_c;
+      if (p.name && cityKey && domains) {
+        const suffix = `_${p.name.toLowerCase().replace(/ /g, '_')}`;
+        const matchKey = Object.keys(wardSim).find((k) => k.endsWith(suffix));
+        if (matchKey && wardSim[matchKey] !== undefined) {
+          const simVal = wardSim[matchKey];
+          const wardFeature = domains.features.find((f) => f.properties.ward_id === matchKey);
+          if (wardFeature) {
+            const baseVal = wardFeature.properties.lst_calibrated_c ?? wardFeature.properties.avg_lst_c;
+            const delta = Math.max(0, baseVal - simVal);
+            utci = utci - delta * 0.72;
+          }
+        }
+      }
+      return utci;
+    },
     formatValue: (v) => `${v.toFixed(1)}°C UTCI`,
     tooltipLabel: "UTCI",
     defaultBounds: [18, 30],
@@ -401,7 +447,7 @@ export default function HeatMap({
     if (metaOk) return [heatmapMeta.vmin, heatmapMeta.vmax];
 
     const values = (fineGrid?.features ?? []).map((f) =>
-      layerConfig.getValue(f.properties, wardSimulations)
+      layerConfig.getValue(f.properties, wardSimulations, domains, cityKey)
     ).filter((v) => Number.isFinite(v));
 
     if (values.length >= 2) {
@@ -428,8 +474,8 @@ export default function HeatMap({
   }, [thermalOverlay]);
 
   const cellValue = useCallback((p: WardProperties) => {
-    return layerConfig.getValue(p, wardSimulations);
-  }, [layerConfig, wardSimulations]);
+    return layerConfig.getValue(p, wardSimulations, domains, cityKey);
+  }, [layerConfig, wardSimulations, domains, cityKey]);
 
   /* sync pitch into viewState when user clicks a button */
   const applyPitch = useCallback((p: number) => {
@@ -609,7 +655,7 @@ export default function HeatMap({
               : [255, 166, 0, 255],
           billboard:       true,
           pickable:        true,
-          parameters:      { depthTest: false },
+          parameters:      { depthTest: false } as any,
           onClick:         (info: PickingInfo<HotspotFeature>) => {
             if (!info.object) return;
             setSelectedHotspot(info.object);

@@ -24,6 +24,7 @@ import {
   getWards,
   predictPoint,
   runScenario,
+  runScenarioComparison,
 } from "@/lib/api";
 import type {
   BenchmarkSummary,
@@ -44,7 +45,12 @@ import type {
   UspMetrics,
   WardCollection,
   WardProperties,
+  ScenarioComparisonResult,
+  ScenarioComparisonEntry,
 } from "@/types";
+
+import ScenarioComparison from "@/components/ScenarioComparison";
+import BeforeAfterMap from "@/components/BeforeAfterMap";
 
 const HeatMap = dynamic(() => import("@/components/HeatMap"), { ssr: false });
 
@@ -96,7 +102,13 @@ export default function Dashboard() {
     utci: number;
   } | null>(null);
   const [running, setRunning] = useState(false);
+  const [comparison, setComparison] = useState<ScenarioComparisonResult | null>(null);
+  const [selectedScenarioName, setSelectedScenarioName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showBeforeAfter, setShowBeforeAfter] = useState(false);
+  // Rich metrics from the selected scenario entry
+  const [selectedScenarioEntry, setSelectedScenarioEntry] = useState<ScenarioComparisonEntry | null>(null);
+  const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState<number | undefined>(undefined);
 
   const cityGroups = useMemo(() => {
     const groups: Record<string, CityInfo[]> = {};
@@ -190,6 +202,9 @@ export default function Dashboard() {
 
     setWardSimulations({});
     setScenarioMetrics(null);
+    setComparison(null);
+    setSelectedScenarioName(null);
+    setActiveTimelineStepIndex(undefined);
     setLoading(false);
   }, []);
 
@@ -231,10 +246,37 @@ export default function Dashboard() {
     if (match) setSelectedWard(match.properties);
   };
 
+  const handleSelectScenario = useCallback((sc: ScenarioComparisonEntry) => {
+    setSelectedScenarioName(sc.name);
+    setSelectedScenarioEntry(sc);
+    const updates: Record<string, number> = {};
+    for (const u of sc.ward_updates) {
+      updates[u.ward_id] = u.simulated_lst_c;
+    }
+    setWardSimulations(updates);
+    setScenarioMetrics({
+      co2: sc.co2_tons_yr,
+      investment: sc.estimated_cost_m_usd,
+      lst: sc.temperature_c,
+      utci: sc.utci_c,
+    });
+    setActiveTimelineStepIndex(4); // Default to 10 Years (full cooling)
+    if (selectedWard) {
+      const wardUpdate = sc.ward_updates.find((u) => u.ward_id === selectedWard.ward_id);
+      setSelectedWard({
+        ...selectedWard,
+        simulated_lst_c: updates[selectedWard.ward_id] ?? selectedWard.simulated_lst_c,
+        cooling_delta_c: wardUpdate ? wardUpdate.cooling_delta_c : sc.temp_reduction_c,
+      });
+    }
+  }, [selectedWard]);
+
   const handleRun = async () => {
     setRunning(true);
+    setComparison(null);
+    setSelectedScenarioName(null);
     try {
-      const result = await runScenario(
+      const result = await runScenarioComparison(
         cityKey,
         sim.coolRoofs,
         sim.greenRoofs,
@@ -242,23 +284,15 @@ export default function Dashboard() {
         sim.blueInfra,
         sim.budget
       );
-      const updates: Record<string, number> = {};
-      for (const u of result.ward_updates) {
-        updates[u.ward_id] = u.simulated_lst_c;
-      }
-      setWardSimulations(updates);
-      setScenarioMetrics({
-        co2: result.co2_sequestration_tons_yr,
-        investment: result.total_investment_m_usd,
-        lst: result.simulated_avg_lst_c,
-        utci: result.simulated_utci_c,
-      });
-      if (selectedWard) {
-        setSelectedWard({
-          ...selectedWard,
-          simulated_lst_c: updates[selectedWard.ward_id] ?? selectedWard.simulated_lst_c,
-          cooling_delta_c: result.mean_cooling_delta_c,
-        });
+      setComparison(result);
+
+      // Default to Combined (All) scenario or the first scenario
+      const defaultScenario =
+        result.scenarios.find((s: any) => s.name.includes("Combined")) ||
+        result.scenarios[result.scenarios.length - 1];
+
+      if (defaultScenario) {
+        handleSelectScenario(defaultScenario);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Scenario failed");
@@ -271,7 +305,44 @@ export default function Dashboard() {
     setSim(DEFAULT_SIM);
     setWardSimulations({});
     setScenarioMetrics(null);
+    setComparison(null);
+    setSelectedScenarioName(null);
+    setSelectedScenarioEntry(null);
+    setShowBeforeAfter(false);
+    setActiveTimelineStepIndex(undefined);
   };
+
+  const handleTimelineStepClick = useCallback((factor: number, label: string) => {
+    if (!selectedScenarioEntry) return;
+
+    const factors = [0.00, 0.22, 0.42, 0.72, 1.00];
+    const stepIndex = factors.indexOf(factor);
+    setActiveTimelineStepIndex(stepIndex !== -1 ? stepIndex : undefined);
+
+    const updates: Record<string, number> = {};
+    for (const u of selectedScenarioEntry.ward_updates) {
+      // baseline = simulated_lst_c + cooling_delta_c
+      // Temp = baseline - cooling_delta_c * factor = simulated_lst_c + cooling_delta_c * (1 - factor)
+      updates[u.ward_id] = u.simulated_lst_c + u.cooling_delta_c * (1 - factor);
+    }
+    setWardSimulations(updates);
+
+    setScenarioMetrics({
+      co2: selectedScenarioEntry.co2_tons_yr * factor,
+      investment: selectedScenarioEntry.estimated_cost_m_usd,
+      lst: selectedScenarioEntry.temperature_c + selectedScenarioEntry.temp_reduction_c * (1 - factor),
+      utci: selectedScenarioEntry.utci_c + (selectedScenarioEntry.temp_reduction_c * (1 - factor)),
+    });
+
+    if (selectedWard) {
+      const wardUpdate = selectedScenarioEntry.ward_updates.find((u) => u.ward_id === selectedWard.ward_id);
+      setSelectedWard({
+        ...selectedWard,
+        simulated_lst_c: updates[selectedWard.ward_id] ?? selectedWard.simulated_lst_c,
+        cooling_delta_c: wardUpdate ? wardUpdate.cooling_delta_c * factor : selectedScenarioEntry.temp_reduction_c * factor,
+      });
+    }
+  }, [selectedScenarioEntry, selectedWard]);
 
   const handleMapClick = useCallback(
     async (lon: number, lat: number) => {
@@ -345,40 +416,90 @@ export default function Dashboard() {
           running={running}
           scenarioResult={scenarioMetrics}
           baselineLst={summary?.metrics?.avg_city_lst_c}
+          carbonReductionPct={selectedScenarioEntry?.carbon_reduction_pct}
+          heatStressReductionPct={selectedScenarioEntry?.heat_stress_reduction_pct}
+          populationBenefited={selectedScenarioEntry?.population_benefited}
+          overallScore={selectedScenarioEntry?.overall_score}
+          activeStepIndex={activeTimelineStepIndex}
+          onStepClick={handleTimelineStepClick}
         />
 
-        <main className="relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-          {summary && (
-            <HeatMap
-              key={`${cityKey}-${mapLayer}-${summary.bbox.join(",")}`}
-              cityKey={cityKey}
-              cityName={summary.city_name}
-              domains={domains}
-              fineGrid={fineGrid}
-              samplePoints={samplePoints}
-              hotspots={hotspots}
-              heatmapMeta={heatmapMeta}
-              bbox={summary.bbox}
-              layer={mapLayer}
-              selectedWard={selectedWard}
-              targetWard={sim.targetWard}
-              onSelectWard={(w) => {
-                setSelectedWard(w);
-                if (!w) setPointPrediction(null);
-                if (w) setSim((s) => ({ ...s, targetWard: w.name }));
-                else setSim((s) => ({ ...s, targetWard: "Full City" }));
-              }}
+        <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#0f1419] p-4 gap-4">
+          {/* Before/After toggle button — visible only after a simulation */}
+          {scenarioMetrics && domains && summary && Object.keys(wardSimulations).length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBeforeAfter((v) => !v)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  showBeforeAfter
+                    ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-300"
+                    : "border-slate-600/60 bg-slate-800/60 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-300"
+                }`}
+              >
+                <span>⚖️</span>
+                {showBeforeAfter ? "Hide Before/After" : "Before vs After Map"}
+              </button>
+              {showBeforeAfter && (
+                <span className="text-[10px] text-slate-500">← drag the handle to compare heat maps</span>
+              )}
+            </div>
+          )}
+
+          {/* Before/After split map */}
+          {showBeforeAfter && scenarioMetrics && domains && summary && (
+            <BeforeAfterMap
+              wards={domains}
               wardSimulations={wardSimulations}
-              onLayerChange={setMapLayer}
-              pointPrediction={pointPrediction}
-              predicting={predicting}
-              onMapClick={handleMapClick}
+              baselineLst={summary.metrics.avg_city_lst_c}
+              simulatedLst={scenarioMetrics.lst}
+              bbox={summary.bbox}
             />
           )}
-          {!summary && !loading && (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
-              Select a city with pipeline data
-            </div>
+
+          <div className="relative w-full flex-1 min-h-[450px] rounded-xl overflow-hidden border border-slate-700/40 bg-slate-900">
+            {summary && (
+              <HeatMap
+                key={`${cityKey}-${mapLayer}-${summary.bbox.join(",")}`}
+                cityKey={cityKey}
+                cityName={summary.city_name}
+                domains={domains}
+                fineGrid={fineGrid}
+                samplePoints={samplePoints}
+                hotspots={hotspots}
+                heatmapMeta={heatmapMeta}
+                bbox={summary.bbox}
+                layer={mapLayer}
+                selectedWard={selectedWard}
+                targetWard={sim.targetWard}
+                onSelectWard={(w) => {
+                  setSelectedWard(w);
+                  if (!w) setPointPrediction(null);
+                  if (w) setSim((s) => ({ ...s, targetWard: w.name }));
+                  else setSim((s) => ({ ...s, targetWard: "Full City" }));
+                }}
+                wardSimulations={wardSimulations}
+                onLayerChange={setMapLayer}
+                pointPrediction={pointPrediction}
+                predicting={predicting}
+                onMapClick={handleMapClick}
+              />
+            )}
+            {!summary && !loading && (
+              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+                Select a city with pipeline data
+              </div>
+            )}
+          </div>
+          {(comparison || running) && (
+            <ScenarioComparison
+              comparison={comparison}
+              selectedScenarioName={selectedScenarioName}
+              onSelectScenario={handleSelectScenario}
+              loading={running}
+              budget={sim.budget}
+              baseLstC={summary?.metrics?.avg_city_lst_c}
+            />
           )}
         </main>
 

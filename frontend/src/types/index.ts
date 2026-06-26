@@ -292,3 +292,36 @@ export interface InterventionRanking {
   target_col?: number;
 }
 
+export interface ScenarioComparisonEntry {
+  name: string;
+  icon: string;
+  temperature_c: number;
+  temp_reduction_c: number;
+  carbon_reduction_pct: number;
+  estimated_cost_m_usd: number;
+  heat_stress_reduction_pct: number;
+  population_benefited: number;
+  overall_score: number;
+  utci_c: number;
+  co2_tons_yr: number;
+  ward_updates: { ward_id: string; simulated_lst_c: number; cooling_delta_c: number }[];
+  reasoning: string[];
+  inputs: {
+    cool_roofs: number;
+    green_roofs: number;
+    urban_greening: number;
+    blue_infra: number;
+  };
+}
+
+export interface ScenarioComparisonResult {
+  city_key: string;
+  baseline_lst_c: number;
+  scenarios: ScenarioComparisonEntry[];
+  recommendation: {
+    strategy: string;
+    reason: string;
+    confidence_pct: number;
+  };
+}
+

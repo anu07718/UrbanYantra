@@ -89,6 +89,7 @@ export default function RightPanel({
           <button
             type="button"
             onClick={onOpenDataDetails}
+            suppressHydrationWarning
             className="mt-2 w-full rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 transition-colors hover:bg-emerald-500/20"
           >
             Detail About Data

@@ -16,11 +16,12 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-  "Explain hotspots",
-  "Top interventions",
-  "Climate projection",
-  "Planning recommendations",
+  { label: "Explain hotspots", prompt: "Explain the urban heat hotspots in this city. Which zones have the highest Land Surface Temperature and why? Give specific data and zones." },
+  { label: "Top interventions", prompt: "What are the top 3 cooling interventions for this city ranked by impact? Provide expected temperature reduction, cost, and implementation timeline for each." },
+  { label: "Climate projection", prompt: "What is the climate projection for this city over the next 20-30 years? How will urban heat island effects change by 2050?" },
+  { label: "Planning recommendations", prompt: "Give me urban planning recommendations for reducing heat stress in this city. Focus on actionable strategies for city administrators." },
 ];
+
 
 /* ── Render markdown-like formatting ────────────────────────────────────── */
 function FormattedText({ text }: { text: string }) {
@@ -242,15 +243,15 @@ export default function AIChat({ cityKey, cityName }: AIChatProps) {
 
       {/* quick prompts */}
       <div className="flex flex-wrap gap-1.5 border-t border-slate-700/40 bg-slate-900/40 px-3 py-2">
-        {QUICK_PROMPTS.map((prompt) => (
+        {QUICK_PROMPTS.map((item) => (
           <button
-            key={prompt}
+            key={item.label}
             type="button"
-            onClick={() => handleSend(prompt)}
+            onClick={() => handleSend(item.prompt)}
             disabled={loading}
             className="rounded-full border border-slate-600/60 bg-slate-800/70 px-2.5 py-1 text-[10px] text-slate-300 transition-colors hover:border-violet-500/50 hover:bg-violet-600/20 hover:text-white disabled:opacity-40"
           >
-            {prompt}
+            {item.label}
           </button>
         ))}
       </div>

@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from backend.app.services import city_data, heatmap, model_inference, thermal_overlay
+from backend.app.services.llm_chat import llm_chat_response
 from backend.app.services.report_generator import generate_report
 
 app = FastAPI(
@@ -55,6 +56,7 @@ class ScenarioRequest(BaseModel):
 class ChatRequest(BaseModel):
     city_key: str = "Bengaluru"
     message: str
+    history: list[dict] = []
 
 
 class PredictRequest(BaseModel):
@@ -364,10 +366,31 @@ def scenario(body: ScenarioRequest):
         raise HTTPException(500, str(e)) from e
 
 
+@app.post("/scenario/compare")
+def scenario_compare(body: ScenarioRequest):
+    try:
+        return city_data.run_scenario_comparison(
+            body.city_key,
+            body.cool_roofs_pct,
+            body.green_roofs_pct,
+            body.urban_greening_pct,
+            body.blue_infra_pct,
+            body.budget_m_usd,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
 @app.post("/chat")
 def chat(body: ChatRequest):
     try:
-        reply = city_data.chat_response(body.message, body.city_key)
+        reply = llm_chat_response(
+            message=body.message,
+            city_key=body.city_key,
+            conversation_history=body.history or [],
+        )
         return {"reply": reply}
     except FileNotFoundError as e:
         raise HTTPException(404, str(e)) from e

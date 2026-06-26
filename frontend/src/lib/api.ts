@@ -146,6 +146,31 @@ export async function runScenario(
   return res.json();
 }
 
+// Run scenario comparison
+export async function runScenarioComparison(
+  cityKey: string,
+  coolRoofsPct: number,
+  greenRoofsPct: number,
+  urbanGreeningPct: number,
+  blueInfraPct: number,
+  budgetMUsd: number
+) {
+  const res = await fetch(`${apiBase}/scenario/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      city_key: cityKey,
+      cool_roofs_pct: coolRoofsPct,
+      green_roofs_pct: greenRoofsPct,
+      urban_greening_pct: urbanGreeningPct,
+      blue_infra_pct: blueInfraPct,
+      budget_m_usd: budgetMUsd,
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to run scenario comparison: ${res.statusText}`);
+  return res.json();
+}
+
 // Chat
 export async function sendChat(
   cityKey: string,

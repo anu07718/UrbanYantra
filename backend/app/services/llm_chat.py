@@ -12,8 +12,7 @@ from typing import Any
 
 # ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-2.5-flash"
 

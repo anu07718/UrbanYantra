@@ -26,6 +26,7 @@ export interface CitySummary {
     total_investment_m_usd: number;
   };
   is_real_data?: boolean;
+  fetch_errors?: string[];
   data_sources?: Record<string, string>;
   artifacts_present?: Record<string, boolean>;
 }
@@ -73,6 +74,8 @@ export interface HeatmapMeta {
   grid_step: number;
   unit?: string;
   source?: string;
+  data_available?: boolean;
+  error?: string;
 }
 
 export interface ThermalOverlayMeta {
@@ -136,6 +139,8 @@ export interface DataAudit {
   city_key: string;
   data_mode: string;
   synthetic_used: boolean;
+  has_fetch_errors?: boolean;
+  fetch_errors?: string[];
   datasets: DataAuditItem[];
 }
 

@@ -37,13 +37,15 @@ Files: `ECMWF_utci_20240301_v1.1_con.nc` … (~41 MB/day)
 
 **Note:** These are **UTCI** (human heat stress), not raw 2m temperature — ideal for PS1 “heat stress maps”.
 
-### D-04 GHSL Built-S + SMOD (Google Drive)
+### D-04 GHSL Built-S + SMOD (Hugging Face)
+
+Dataset repo: `sleepingbeauty11/UrbanDatasets` (folder `ghsl/` — Built-S + SMOD India tiles).
 
 - **Built-S** → built-up surface (m²) → impervious / density features  
 - **SMOD** → settlement class (urban core / suburban / rural) → LCZ proxy  
 - **Built-H 2018** → optional; 2–6 year lag vs 2024 LST is **acceptable** for hackathon (cite GHSL epoch in slides)
 
-Download India tiles covering your city bbox, set paths in `local_datasets.yaml`:
+Auto-synced on first `py run_pipeline.py --city Mumbai --data-mode local --force`, or set paths in `local_datasets.yaml`:
 
 ```yaml
 ghsl_built_s: "C:/path/to/GHS_BUILT_S_...tif"

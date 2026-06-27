@@ -83,11 +83,19 @@ outputs/*/*
 !outputs/*/benchmarks/**
 !outputs/*/rasters/lst_10m.tif
 !outputs/*/rasters/ndvi.tif
+!outputs/*/rasters/ghsl_built_surface.tif
+!outputs/*/rasters/ghsl_smod.tif
+!outputs/*/rasters/ghsl_building_height.tif
+!outputs/*/rasters/ghsl_population.tif
 
 # Global binary ignores — exceptions below for deploy bundle only
 *.tif
 !outputs/*/rasters/lst_10m.tif
 !outputs/*/rasters/ndvi.tif
+!outputs/*/rasters/ghsl_built_surface.tif
+!outputs/*/rasters/ghsl_smod.tif
+!outputs/*/rasters/ghsl_building_height.tif
+!outputs/*/rasters/ghsl_population.tif
 !outputs/*/maps/thermal_satellite.png
 !outputs/*/maps/thermal_satellite_meta.json
 

@@ -9,8 +9,8 @@ End-to-end ISRO hackathon prototype: **hotspot detection**, **SHAP driver attrib
 | LST | Landsat 8 C2 L2 via GEE |
 | 10 m downscaling | Sentinel-2 NDVI/NDBI regression |
 | LULC | ESA WorldCover 10 m |
-| Meteo / heat stress | ERA5 UTCI (Drive cache) or ERA5-Land (GEE) |
-| Morphology | GHSL Built-S, SMOD, population (Drive cache) + OSM |
+| Meteo / heat stress | ERA5 UTCI (Hugging Face cache) or ERA5-Land (GEE) |
+| Morphology | GHSL Built-S, SMOD, population (Hugging Face cache) + OSM |
 | ML | XGBoost + Random Forest + spatial CV |
 | External benchmarks | D-07 Kaggle UHI CSV, D-09 EY NYC labels |
 | Explainability | SHAP |
@@ -27,7 +27,7 @@ py -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 2. Run pipeline on one city (real data from Drive cache + GEE satellite)
+# 2. Run pipeline on one city (real data from Hugging Face + GEE satellite)
 py run_pipeline.py --city Mumbai --data-mode local --force
 
 # 3. Start API
@@ -45,39 +45,39 @@ npm run dev
 
 ---
 
-## Download real data (Google Drive)
+## Download real data (Hugging Face)
 
-Your shared **Urban Dataset** folder is pre-configured:
+Urban datasets are hosted on Hugging Face (replaces Google Drive — no 4-folder sync limit):
 
 ```
-https://drive.google.com/drive/folders/1pM9UKiI03lm_4XhnSwmcAp8at1pz8REU
-→ configs/remote_datasets.yaml → urban_dataset_folder
+https://huggingface.co/datasets/sleepingbeauty11/UrbanDatasets
+→ configs/remote_datasets.yaml → urban_dataset_folder.huggingface_repo_id
 ```
 
 ### What gets downloaded (first pipeline run)
 
 | Dataset | ID | Cache path | Used for |
 |---------|-----|------------|----------|
-| GHSL Built-S | D-04 | `data/cache/urban_dataset/` (7 India zips) | Built-up density map layer |
+| GHSL Built-S | D-04 | `data/cache/urban_dataset/ghsl/` (7 India zips) | Built-up density map layer |
 | GHSL SMOD | D-04 | same folder | Settlement / urban-core map layer |
 | GHSL Population | D-04 | clipped rasters in `outputs/{city}/rasters/` | Population exposure layer |
-| ERA5 UTCI NetCDF | D-03 | `ECMWF_utci_*.nc` in cache | Heat-stress / meteo features |
+| ERA5 UTCI NetCDF | D-03 | `data/cache/urban_dataset/era5/` | Heat-stress / meteo features |
 | Kaggle UHI CSV | D-07 | `data/benchmarks/` (bundled in Git) | Training benchmark |
 | EY NYC UHI labels | D-09 | `data/benchmarks/` (bundled in Git) | External validation benchmark |
 
 ### Download commands
 
 ```powershell
-pip install gdown   # one-time, for Drive folder sync
+pip install huggingface_hub   # one-time, for dataset sync
 
-# Single city — auto-syncs Drive on first run, then uses cache
+# Single city — auto-syncs Hugging Face on first run, then uses cache
 py run_pipeline.py --city Mumbai --data-mode local --force
 
 # All 10 configured cities
 py run_pipeline.py --multi-city --data-mode local --force
 ```
 
-**Share setting:** Drive folder must be **Anyone with the link → Viewer**.
+**Repo must be public** (or set `HF_TOKEN` env var for private repos).
 
 **Local PC shortcut:** You can also point to extracted files in `configs/local_datasets.yaml` (see `docs/REAL_DATA_GUIDE.md`).
 
@@ -87,11 +87,13 @@ py run_pipeline.py --multi-city --data-mode local --force
 
 | Mode | GHSL / ERA5 | Satellite (LST, S2, WorldCover) |
 |------|-------------|-----------------------------------|
-| `local` | Google Drive cache | GEE |
-| `gee` | GEE or Drive if configured | GEE |
+| `local` | Hugging Face cache | GEE |
+| `gee` | GEE or Hugging Face if configured | GEE |
 | `synthetic` | Synthetic fallback | Synthetic fallback |
 
-Recommended for hackathon demo: **`local`** (real GHSL + ERA5 from Drive, real Landsat from GEE).
+Recommended for hackathon demo: **`local`** (real GHSL + ERA5 from Hugging Face, real Landsat from GEE).
+
+The dashboard shows **"Error fetching data"** (not "Live outputs") when any critical artifact is missing — GHSL, ERA5, Landsat, WorldCover, or Sentinel-2.
 
 ---
 
@@ -100,8 +102,10 @@ Recommended for hackathon demo: **`local`** (real GHSL + ERA5 from Drive, real L
 | Path | Description |
 |------|-------------|
 | `tables/feature_table.parquet` | Pixel features + USP columns |
-| `tables/intervention_rankings.csv` | Ranked cooling zones |
+| `tables/intervention_rankings.csv` | Ranked cooling zones (real InVEST UCM ΔT) |
 | `ranking/{city}.json` | Same rankings for API |
+| `rasters/ghsl_built_surface.tif` | GHSL built-up layer for map |
+| `rasters/ghsl_smod.tif` | GHSL settlement layer for map |
 | `models/xgb_lst_regressor.joblib` | Live inference model |
 | `models/benchmark_metrics.json` | City XGBoost + Kaggle/EY baselines |
 | `benchmarks/` | D-07/D-09 summaries |
@@ -119,13 +123,13 @@ Recommended for hackathon demo: **`local`** (real GHSL + ERA5 from Drive, real L
 | Thermal View | Raw Landsat ST_B10 on satellite basemap |
 | Heat Stress (UTCI) | ERA5 UTCI + LST proxy |
 | Green Coverage (NDVI) | Sentinel-2 |
-| GHSL Built-up | GHSL Built-S (Drive cache) |
+| GHSL Built-up | GHSL Built-S (Hugging Face cache) |
 | GHSL Population | GHSL population raster |
 | GHSL Settlement (SMOD) | GHSL SMOD settlement degree |
 | Risk Level | Hotspot class + LST composite |
 | Heat hotspots (pins) | Getis-Ord Gi* severe/moderate pixels |
 
-Right panel: **Ranked Interventions** table, SHAP drivers, cooling potential, climate trend.
+Right panel: **Ranked Interventions** (top zones per strategy from real LST/NDVI rasters), SHAP drivers, cooling potential, climate trend.
 
 ---
 
@@ -135,11 +139,11 @@ Architecture: **Vercel = frontend only** · **Render = FastAPI + precomputed `ou
 
 ### Recommended strategy (hackathon / free tier)
 
-1. Run pipeline locally for all demo cities
-2. Commit `outputs/{city}/` artifacts (Git LFS optional for large parquets)
-3. Push to GitHub — Render serves API from committed outputs (no multi-GB Drive sync on server)
+1. Run pipeline locally for all demo cities (downloads from Hugging Face automatically)
+2. Commit `outputs/{city}/` artifacts including GHSL rasters (see `.gitignore` deploy bundle)
+3. Push to GitHub — Render serves API from committed outputs
 
-Bundled in Git by default (see `.gitignore` exceptions): `feature_table.parquet`, models, rankings, geojson, summary, benchmarks.
+Bundled in Git by default (see `.gitignore` exceptions): `feature_table.parquet`, GHSL rasters, models, rankings, geojson, summary, benchmarks.
 
 ### Render (backend)
 
@@ -159,11 +163,10 @@ startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
 | `URBANCOOL_DATA_CACHE` | `/opt/render/project/src/data/cache` |
 | `OPENROUTER_API_KEY` | Optional — AI chat |
 
-**Optional live Drive sync on Render** (slow, needs disk):
+**Optional live Hugging Face sync on Render** (slow, needs disk + GEE):
 
 ```powershell
-pip install gdown
-# Set GEE credentials if also fetching satellite on server
+pip install huggingface_hub
 py run_pipeline.py --city Mumbai --data-mode local --force
 ```
 
@@ -194,7 +197,8 @@ curl https://urbancool-api.onrender.com/cities/Mumbai/interventions?limit=5
 | Endpoint | Description |
 |----------|-------------|
 | `GET /cities` | List cities with data |
-| `GET /cities/{city}/summary` | Metrics + provenance |
+| `GET /cities/{city}/summary` | Metrics + provenance (includes `fetch_errors` if any) |
+| `GET /cities/{city}/data-audit` | Per-dataset status (`error` when fetch failed) |
 | `GET /cities/{city}/wards` | 3-D map grid GeoJSON |
 | `GET /cities/{city}/heatmap/{layer}/meta` | Layer bounds (incl. `ghsl_built`, `ghsl_population`, `ghsl_smod`) |
 | `GET /cities/{city}/hotspots` | Hotspot pin GeoJSON |
@@ -240,3 +244,4 @@ cd frontend && npx tsc --noEmit
 - [UHI-Analysis](https://github.com/ArhamOrioner/UHI-Analysis) — GEE + ML hotspot pipeline
 - [WRI UrbanHeatMitigation](https://github.com/wri/UrbanHeatMitigation)
 - [InVEST UCM calibration](https://github.com/martibosch/invest-ucm-calibration)
+- [UrbanDatasets on Hugging Face](https://huggingface.co/datasets/sleepingbeauty11/UrbanDatasets)

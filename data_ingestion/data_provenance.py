@@ -33,5 +33,5 @@ def require_real_source(config: dict, source: str, exc: Exception | None = None)
     detail = f": {exc}" if exc else ""
     raise RuntimeError(
         f"Real data required for '{source}' (data_mode={config.get('data_mode')}) but fetch failed{detail}. "
-        "Check configs/local_datasets.yaml paths, GEE auth, and re-run with --force"
+        "Check configs/local_datasets.yaml paths, Hugging Face repo access, GEE auth, and re-run with --force"
     ) from exc

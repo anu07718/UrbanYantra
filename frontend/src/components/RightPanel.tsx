@@ -60,27 +60,47 @@ export default function RightPanel({
   const artifacts = summary?.artifacts_present ?? {};
   const presentCount = Object.values(artifacts).filter(Boolean).length;
   const totalCount = Object.keys(artifacts).length;
+  const fetchErrors = summary?.fetch_errors ?? [];
+  const dataHealthy = summary?.is_real_data === true;
 
   return (
     <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-slate-700/60 bg-[#151b28] p-3">
-      <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3">
+      <div
+        className={`rounded-lg border p-3 ${
+          dataHealthy
+            ? "border-emerald-700/50 bg-emerald-950/20"
+            : "border-red-700/50 bg-red-950/20"
+        }`}
+      >
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xs font-semibold text-slate-100">Real Data Status</h3>
-          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">
-            {summary?.is_real_data ? "Live outputs" : "Demo"}
+          <span
+            className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+              dataHealthy
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-red-500/15 text-red-300"
+            }`}
+          >
+            {dataHealthy ? "Live outputs" : "Error fetching data"}
           </span>
         </div>
         <p className="mt-1 text-[10px] leading-snug text-slate-400">
-          Real datasets are powering the map and model outputs.
+          {dataHealthy
+            ? "Real datasets are powering the map and model outputs."
+            : fetchErrors.length > 0
+              ? fetchErrors.slice(0, 2).join(" · ")
+              : "One or more datasets failed to load. Re-run the pipeline with --force."}
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1 text-[10px]">
           <div className="rounded bg-slate-900/50 px-2 py-1">
             <span className="block text-slate-500">Mode</span>
-            <span className="font-mono text-emerald-300">{dataMode ?? summary?.data_mode ?? "unknown"}</span>
+            <span className={`font-mono ${dataHealthy ? "text-emerald-300" : "text-red-300"}`}>
+              {dataMode ?? summary?.data_mode ?? "unknown"}
+            </span>
           </div>
           <div className="rounded bg-slate-900/50 px-2 py-1">
             <span className="block text-slate-500">Artifacts</span>
-            <span className="font-mono text-emerald-300">
+            <span className={`font-mono ${dataHealthy ? "text-emerald-300" : "text-red-300"}`}>
               {totalCount ? `${presentCount}/${totalCount}` : "loading"}
             </span>
           </div>

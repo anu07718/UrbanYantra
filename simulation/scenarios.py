@@ -51,7 +51,8 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
 
     h, w = lst.shape
     df_pixels = pd.read_parquet(out_dir / "tables" / "feature_table.parquet")
-    recommendations = []
+    recommendations: list[dict] = []
+    per_scenario: dict[str, list[dict]] = {}
 
     for scenario_name, params in config.get("scenarios", {}).items():
         delta = invest_ucm_delta_t(lst, ndvi, impervious, scenario_name, params)
@@ -78,13 +79,12 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
         benefit = -delta  # positive = cooling
         complexity, desc = SCENARIO_COMPLEXITY.get(scenario_name, ("medium", ""))
         cost_per_sqm = config.get("intervention_costs_inr_per_sqm", {}).get(scenario_name, 1000)
-        # Rank top zones by benefit per unit area (pixel)
         flat_idx = np.argsort(benefit.ravel())[::-1][:50]
-        for rank, idx in enumerate(flat_idx[:20], start=1):
+        scenario_rows: list[dict] = []
+        for idx in flat_idx[:20]:
             r, c = divmod(int(idx), w)
-            recommendations.append(
+            scenario_rows.append(
                 {
-                    "rank": rank,
                     "intervention_type": scenario_name,
                     "intervention_description": desc,
                     "target_row": r,
@@ -96,10 +96,17 @@ def run_scenarios(config: dict, out_dir: Path) -> pd.DataFrame:
                     "cost_inr_per_sqm": cost_per_sqm,
                     "baseline_lst_c": float(lst[r, c]),
                     "post_lst_c": float(lst_new[r, c]),
-                    "confidence": "medium" if config.get("data_mode") == "gee" else "demo-synthetic",
+                    "confidence": "medium" if config.get("data_mode") in ("gee", "local") else "demo-synthetic",
                     "implementation_complexity": complexity,
                 }
             )
+        per_scenario[scenario_name] = scenario_rows
+
+    # Balanced ranking: top zones per intervention type, then global sort (avoids all-blue list)
+    top_per_type = 5
+    for rows in per_scenario.values():
+        rows.sort(key=lambda item: item["estimated_temp_reduction_c"], reverse=True)
+        recommendations.extend(rows[:top_per_type])
 
     rec_df = pd.DataFrame(recommendations)
     rec_df = rec_df.sort_values("estimated_temp_reduction_c", ascending=False).reset_index(drop=True)

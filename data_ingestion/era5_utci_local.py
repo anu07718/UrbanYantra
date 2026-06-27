@@ -46,7 +46,7 @@ def _extract_utci_zip(zip_path: Path, dest: Path, start: pd.Timestamp, end: pd.T
 def _local_utci_dir(config: dict) -> Path | None:
     from data_ingestion.remote_cache import ensure_urban_dataset_cached
 
-    # 1) After Drive sync — find .nc anywhere under urban_dataset cache
+    # 1) After Hugging Face sync — find .nc anywhere under urban_dataset cache
     remote = config.get("remote_data") or {}
     if remote.get("urban_dataset_folder"):
         try:
@@ -73,7 +73,7 @@ def _local_utci_dir(config: dict) -> Path | None:
                 if extracted:
                     return extracted
         except Exception as exc:
-            logger.warning("UTCI from Drive cache failed: %s", exc)
+            logger.warning("UTCI from Hugging Face cache failed: %s", exc)
 
     from data_ingestion.remote_cache import resolve_dataset_dir
 

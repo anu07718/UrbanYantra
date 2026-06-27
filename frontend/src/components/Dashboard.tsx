@@ -65,6 +65,7 @@ const DEFAULT_SIM: SimulationState = {
 
 function dataStatusClass(status: string) {
   if (["real", "cached_real", "bundled_real"].includes(status)) return "text-emerald-300";
+  if (status === "error") return "text-red-300";
   if (status === "synthetic") return "text-red-300";
   if (status === "fallback") return "text-amber-300";
   return "text-slate-500";
@@ -386,13 +387,25 @@ export default function Dashboard() {
         {summary && (
           <span className="text-[10px] text-slate-500">
             Data:{" "}
-            <span className={summary.data_mode === "gee" ? "text-green-400" : "text-amber-400"}>
-              {summary.data_mode === "gee" || summary.is_real_data
-                ? "Satellite + ERA5 (real)"
-                : "Run pipeline with --data-mode gee"}
-            </span>
-            {summary.data_mode !== "gee" && (
-              <> · For real LST: <code className="text-cyan-500">py run_pipeline.py --city {cityKey} --data-mode gee</code></>
+            {summary.is_real_data ? (
+              <span className="text-green-400">Satellite + ERA5 + GHSL (live)</span>
+            ) : summary.fetch_errors && summary.fetch_errors.length > 0 ? (
+              <span className="text-red-400" title={summary.fetch_errors.join("; ")}>
+                Error fetching data
+              </span>
+            ) : summary.data_mode === "synthetic" ? (
+              <span className="text-amber-400">Synthetic demo mode</span>
+            ) : (
+              <span className="text-red-400">Error fetching data — run pipeline</span>
+            )}
+            {!summary.is_real_data && summary.data_mode !== "synthetic" && (
+              <>
+                {" "}
+                ·{" "}
+                <code className="text-cyan-500">
+                  py run_pipeline.py --city {cityKey} --data-mode local --force
+                </code>
+              </>
             )}
           </span>
         )}
@@ -543,8 +556,16 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-white">Dataset Usage Audit</h3>
                   {dataAudit && (
-                    <span className={`text-[10px] font-bold uppercase ${dataAudit.synthetic_used ? "text-red-300" : "text-emerald-300"}`}>
-                      {dataAudit.synthetic_used ? "Synthetic present" : "No synthetic in selected city"}
+                    <span
+                      className={`text-[10px] font-bold uppercase ${
+                        dataAudit.has_fetch_errors ? "text-red-300" : dataAudit.synthetic_used ? "text-red-300" : "text-emerald-300"
+                      }`}
+                    >
+                      {dataAudit.has_fetch_errors
+                        ? "Fetch errors present"
+                        : dataAudit.synthetic_used
+                          ? "Synthetic present"
+                          : "No synthetic in selected city"}
                     </span>
                   )}
                 </div>

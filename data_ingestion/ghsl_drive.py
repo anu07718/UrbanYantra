@@ -1,4 +1,4 @@
-"""GHSL from Google Drive — sync India tile zips and pick the tile overlapping each city bbox."""
+"""GHSL from Hugging Face cache — sync India tile zips and pick the tile overlapping each city bbox."""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def _bbox_points_inside_count(src, bbox: list[float]) -> int:
 
 
 def pick_ghsl_geotiff_for_bbox(config: dict, layer_key: str, bbox: list[float]) -> Path:
-    """Sync Drive folder (if needed), pick India tile zip/tif that best overlaps city bbox."""
+    """Sync Hugging Face dataset (if needed), pick India tile zip/tif that best overlaps city bbox."""
     force = bool(config.get("force_refresh"))
     root = ensure_urban_dataset_cached(config, force=force)
     cache_dir = _cache_root(config) / "ghsl_tiles"
@@ -105,7 +105,7 @@ def pick_ghsl_geotiff_for_bbox(config: dict, layer_key: str, bbox: list[float]) 
     if not archives:
         raise FileNotFoundError(
             f"No GHSL archives for {layer_key} under {root}. "
-            f"Expected *BUILT_S* or *SMOD* zips in Drive folder."
+            f"Expected *BUILT_S* or *SMOD* zips in Hugging Face dataset cache."
         )
 
     best_path: Path | None = None

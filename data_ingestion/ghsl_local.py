@@ -22,12 +22,12 @@ def _path(config: dict, key: str) -> Path | None:
 
     remote = (config.get("remote_data") or {})
     urban_folder = remote.get("urban_dataset_folder") or {}
-    if urban_folder.get("google_drive_folder_id") or urban_folder.get("google_drive_folder_url"):
+    if urban_folder.get("huggingface_repo_id") or urban_folder.get("hf_repo_id"):
         if key in ("ghsl_built_s", "ghsl_smod", "ghsl_built_h"):
             try:
                 return pick_ghsl_geotiff_for_bbox(config, key, config["bbox"])
             except FileNotFoundError:
-                logger.warning("GHSL Drive pick failed for %s", key)
+                logger.warning("GHSL Hugging Face pick failed for %s", key)
 
     path = resolve_dataset(config, key)
     return path if path and path.exists() else None
@@ -74,7 +74,7 @@ def ingest_ghsl_local(config: dict, out_dir: Path) -> dict[str, Path]:
 
     if not built_s and not smod and not built_h:
         raise FileNotFoundError(
-            "Set ghsl_built_s / ghsl_smod in configs/remote_datasets.yaml (urban_dataset_folder on Drive)"
+            "Set ghsl_built_s / ghsl_smod in configs/remote_datasets.yaml (urban_dataset_folder on Hugging Face)"
         )
 
     surf = None

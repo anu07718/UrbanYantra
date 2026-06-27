@@ -39,7 +39,7 @@ def ingest_ghsl(config: dict, out_dir: Path) -> dict[str, Path]:
         except FileNotFoundError as exc:
             if is_local_data_mode(config):
                 raise
-            logger.warning("Local/Drive GHSL not available (%s) — trying GEE.", exc)
+            logger.warning("Local/Hugging Face GHSL not available (%s) — trying GEE.", exc)
 
     mode = config.get("data_mode", "synthetic")
     if mode == "gee":

@@ -135,10 +135,64 @@ WARD_NAMES = {
 
 VULNERABILITY = ["LOW", "MODERATE", "HIGH", "CRITICAL"]
 
+_CRITICAL_ARTIFACTS = ("landsat_lst", "ghsl", "era5_meteo", "worldcover", "sentinel2_ndvi")
+
+
+def _artifact_health(provenance: dict[str, Any], data_mode: str, artifacts: dict[str, bool]) -> tuple[bool, list[str]]:
+    """Derive live-data status from verified artifacts on disk."""
+    if data_mode == "synthetic":
+        return False, []
+
+    labels = {
+        "landsat_lst": "Landsat LST (GEE)",
+        "ghsl": "GHSL Built-S / SMOD (Hugging Face)",
+        "era5_meteo": "ERA5 UTCI (Hugging Face)",
+        "worldcover": "ESA WorldCover (GEE)",
+        "sentinel2_ndvi": "Sentinel-2 NDVI (GEE)",
+    }
+    errors = [
+        f"Error fetching data: {labels[key]}"
+        for key in _CRITICAL_ARTIFACTS
+        if not artifacts.get(key)
+    ]
+    is_real = data_mode in {"gee", "local"} and not errors
+    return is_real, errors
+
+
+def _dataset_status(present: bool, data_mode: str, *, cached: bool = False) -> str:
+    if present:
+        return "cached_real" if cached else "real"
+    if data_mode == "synthetic":
+        return "synthetic"
+    return "error"
+
 
 def _city_out_dir(city_key: str) -> Path:
     cfg = load_city_config(CITIES_YAML, city_key)
     return ROOT / cfg["output_dir"]
+
+
+def _verify_artifacts(city_key: str, provenance: dict[str, Any]) -> dict[str, bool]:
+    """Check artifact flags against files on disk (summary.json can be stale)."""
+    out = _city_out_dir(city_key)
+    stored = provenance.get("artifacts_present", {})
+    checks = {
+        "landsat_lst": out / "rasters" / "landsat_lst_c.tif",
+        "sentinel2_ndvi": out / "rasters" / "ndvi.tif",
+        "worldcover": out / "rasters" / "worldcover.tif",
+        "ghsl": out / "rasters" / "ghsl_building_height.tif",
+        "era5_meteo": out / "tables" / "era5_land_hourly.parquet",
+        "osm_morphology": out / "tables" / "osm_morphology.parquet",
+        "osm_buildings": out / "vectors" / "osm_buildings.gpkg",
+        "station_calibration": out / "calibration" / "station_calibration.json",
+        "ward_boundaries": out / "geojson" / "ward_zonal.geojson",
+        "feature_table": out / "tables" / "feature_table.parquet",
+        "lst_10m": out / "rasters" / "lst_10m.tif",
+    }
+    verified: dict[str, bool] = {}
+    for key, path in checks.items():
+        verified[key] = path.exists() if key not in stored else bool(stored.get(key)) and path.exists()
+    return verified
 
 
 def _load_city_provenance(city_key: str) -> dict[str, Any]:
@@ -204,15 +258,18 @@ def get_city_summary(city_key: str) -> dict[str, Any]:
     cal = get_station_calibration(city_key)
     provenance = _load_city_provenance(city_key)
     data_mode = provenance.get("data_mode", cfg.get("data_mode", "gee"))
+    artifacts = _verify_artifacts(city_key, provenance)
+    is_real_data, fetch_errors = _artifact_health(provenance, data_mode, artifacts)
     return {
         "city_key": city_key,
         "city_name": cfg["city_name"],
         "bbox": data_bbox,
         "config_bbox": cfg["bbox"],
         "data_mode": data_mode,
-        "is_real_data": provenance.get("is_real_data", data_mode == "gee"),
+        "is_real_data": is_real_data,
+        "fetch_errors": fetch_errors,
         "data_sources": provenance.get("data_sources", {}),
-        "artifacts_present": provenance.get("artifacts_present", {}),
+        "artifacts_present": artifacts,
         "grid_resolution_m": cfg.get("target_resolution_m", 10),
         "calibration": {
             "bias_c": cal.get("bias_c", 0.0),
@@ -239,7 +296,7 @@ def get_data_audit(city_key: str) -> dict[str, Any]:
     cfg = load_city_config(CITIES_YAML, city_key)
     out = _city_out_dir(city_key)
     provenance = _load_city_provenance(city_key)
-    artifacts = provenance.get("artifacts_present", {})
+    artifacts = _verify_artifacts(city_key, provenance)
     sources = provenance.get("data_sources", {})
     data_mode = provenance.get("data_mode", cfg.get("data_mode", "gee"))
     benchmarks = get_benchmark_summary(city_key)
@@ -258,57 +315,60 @@ def get_data_audit(city_key: str) -> dict[str, Any]:
         row(
             "D-01",
             "Landsat 8 Collection 2 LST",
-            "real" if artifacts.get("landsat_lst") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            _dataset_status(bool(artifacts.get("landsat_lst")), data_mode),
             sources.get("landsat_lst", "GEE Landsat 8 ST_B10"),
             "Surface temperature, hotspots, model target",
         ),
         row(
             "D-03",
             "ERA5 / ERA5-Land / UTCI",
-            "cached_real" if artifacts.get("era5_meteo") else ("synthetic" if data_mode == "synthetic" else "missing"),
-            sources.get("era5_meteo", "Drive/cache UTCI NetCDF or GEE ERA5-Land"),
+            _dataset_status(bool(artifacts.get("era5_meteo")), data_mode, cached=True),
+            sources.get("era5_meteo", "Hugging Face UTCI NetCDF or GEE ERA5-Land"),
             "Heat stress, humidity, wind, solar drivers",
         ),
         row(
             "D-04",
             "GHSL Built-S / SMOD",
-            "cached_real" if artifacts.get("ghsl") else ("synthetic" if data_mode == "synthetic" else "missing"),
-            sources.get("ghsl", "Drive/cache GHSL tiles or GEE JRC GHSL"),
+            _dataset_status(bool(artifacts.get("ghsl")), data_mode, cached=True),
+            sources.get("ghsl", "Hugging Face GHSL tiles or GEE JRC GHSL"),
             "Building density, population, LCZ/urban morphology",
         ),
         row(
             "D-05",
             "ESA WorldCover",
-            "real" if artifacts.get("worldcover") else ("synthetic" if data_mode == "synthetic" else "missing"),
+            _dataset_status(bool(artifacts.get("worldcover")), data_mode),
             sources.get("worldcover", "GEE ESA WorldCover"),
             "Water/vegetation/urban masks",
         ),
         row(
             "D-06",
             "OpenStreetMap morphology",
-            "real" if artifacts.get("osm_morphology") else ("fallback" if out.exists() else "missing"),
+            "real" if artifacts.get("osm_morphology") else ("fallback" if out.exists() else "error"),
             sources.get("osm_morphology", "OSM buildings/roads or impervious fallback"),
             "Road density, built form, ward boundaries",
         ),
         row(
             "D-07",
             "Kaggle UHI Monitoring Dataset",
-            "bundled_real" if benchmarks.get("kaggle_uhi", {}).get("rows") else "missing",
+            "bundled_real" if benchmarks.get("kaggle_uhi", {}).get("rows") else "error",
             benchmarks.get("kaggle_uhi", {}).get("source", "data/benchmarks/urban_heat_island_dataset.csv"),
             "Baseline ML/EDA benchmark card",
         ),
         row(
             "D-09",
             "EY 2025 NYC UHI Ground Truth",
-            "bundled_real" if benchmarks.get("ey_uhi", {}).get("rows") else "missing",
+            "bundled_real" if benchmarks.get("ey_uhi", {}).get("rows") else "error",
             benchmarks.get("ey_uhi", {}).get("source", "data/benchmarks/Training_data_uhi_index_2025-02-18.csv"),
             "External validation narrative with labeled UHI",
         ),
     ]
+    is_real, fetch_errors = _artifact_health(provenance, data_mode, artifacts)
     return {
         "city_key": city_key,
         "data_mode": data_mode,
         "synthetic_used": any(item["status"] == "synthetic" for item in rows),
+        "has_fetch_errors": not is_real and data_mode in {"gee", "local"},
+        "fetch_errors": fetch_errors,
         "datasets": rows,
     }
 

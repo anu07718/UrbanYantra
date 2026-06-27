@@ -244,13 +244,26 @@ def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
             ]
     elif layer == "ghsl_built":
         meta["unit"] = "built-up index"
-        meta["source"] = "GHSL Built-S (Google Drive cache)"
+        meta["source"] = "GHSL Built-S (Hugging Face cache)"
     elif layer == "ghsl_population":
         meta["unit"] = "people/cell"
-        meta["source"] = "GHSL Population (Google Drive cache)"
+        meta["source"] = "GHSL Population (Hugging Face cache)"
     elif layer == "ghsl_smod":
         meta["unit"] = "settlement degree"
-        meta["source"] = "GHSL SMOD (Google Drive cache)"
+        meta["source"] = "GHSL SMOD (Hugging Face cache)"
+
+    raster_dir = _city_out_dir(city_key) / "rasters"
+    if layer == "ghsl_built" and not (raster_dir / "ghsl_built_surface.tif").exists():
+        meta["data_available"] = False
+        meta["error"] = "Error fetching data: GHSL Built-S raster not found. Re-run pipeline with --data-mode local --force"
+    elif layer == "ghsl_smod" and not (raster_dir / "ghsl_smod.tif").exists():
+        meta["data_available"] = False
+        meta["error"] = "Error fetching data: GHSL SMOD raster not found. Re-run pipeline with --data-mode local --force"
+    elif layer == "ghsl_population" and not (raster_dir / "ghsl_population.tif").exists():
+        meta["data_available"] = False
+        meta["error"] = "Error fetching data: GHSL population raster not found. Re-run pipeline with --data-mode local --force"
+    else:
+        meta["data_available"] = True
     return meta
 
 

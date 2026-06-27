@@ -45,4 +45,4 @@ ipykernel>=6.27.0
 # Optional physics / advanced (modular)
 # torch>=2.1.0  # uncomment for PINN branch
 netcdf4>=1.6.0
-gdown>=5.1.0
+huggingface_hub>=0.23.0

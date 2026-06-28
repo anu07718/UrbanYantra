@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Thermal Analytics — UrbanCool",
+  title: "Thermal Analytics — UrbanYantra",
   description:
     "Upload satellite imagery to detect urban heat islands and receive AI-powered mitigation strategies.",
 };

@@ -1,4 +1,4 @@
-# Real Data Integration Guide — UrbanCool Hackathon PS1
+# Real Data Integration Guide — UrbanYantra Hackathon PS1
 
 ## Synthetic vs Real — Current Audit
 

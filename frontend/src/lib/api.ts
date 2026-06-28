@@ -1,7 +1,7 @@
 // API base URL
 // - Local dev: localhost:8000
 // - Vercel prod: NEXT_PUBLIC_API_BASE (or default Render URL below)
-const PRODUCTION_API_BASE = "https://urbancool-api.onrender.com";
+const PRODUCTION_API_BASE = "https://urbanyantra-api.onrender.com";
 
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_BASE || process.env.BACKEND_URL;
@@ -199,7 +199,7 @@ export async function downloadReport(cityKey: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `UrbanCool_${cityKey}_${date}.pdf`;
+  a.download = `UrbanYantra_${cityKey}_${date}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

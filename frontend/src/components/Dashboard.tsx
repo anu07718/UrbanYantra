@@ -534,7 +534,7 @@ export default function Dashboard() {
           <div className="w-full max-w-5xl rounded-2xl border border-slate-700/70 bg-[#111827]/95 p-5 text-slate-100 shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 pb-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-300">UrbanCool Data Details</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-300">UrbanYantra Data Details</p>
                 <h2 className="mt-1 text-xl font-bold text-white">{summary?.city_name ?? "City"} real-data pipeline</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
                   These datasets are not just stored in cache — they feed the map layers, hotspot model, driver analysis,

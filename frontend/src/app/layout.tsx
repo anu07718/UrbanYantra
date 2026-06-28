@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "UrbanCool — Urban Heat Mitigation AI Platform",
+  title: "UrbanYantra — Urban Heat Mitigation AI Platform",
   description:
     "Physics-informed AI intelligence platform for urban heat hotspot detection, SHAP driver attribution, and cooling scenario simulation.",
 };

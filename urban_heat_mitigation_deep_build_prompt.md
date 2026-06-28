@@ -16,7 +16,7 @@ Scope locked in: India, week+ research-grade build, pipeline + lightweight dashb
 ## 1. MASTER PROMPT (paste this into Claude Code)
 
 ```
-You are building "UrbanCool" — a geospatial AI/ML system for urban heat hotspot
+You are building "UrbanYantra" — a geospatial AI/ML system for urban heat hotspot
 detection, physics-informed driver attribution, and cooling-intervention optimization,
 for a hackathon on Optimizing Urban Heat Mitigation via AI/ML.
 
@@ -146,7 +146,7 @@ script for Mumbai before moving on.
 ## 4. Repo Structure
 
 ```
-urbancool/
+urbanyantra/
 ├── config/
 │   └── cities.yaml              # bbox, timezone, primary station coords per city
 ├── data_pipeline/

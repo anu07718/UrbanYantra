@@ -956,7 +956,7 @@ def chat_response(message: str, city_key: str) -> str:
         )
     if "hi" in msg or "hello" in msg:
         return (
-            f"Hello! I'm the UrbanCool RAG analytics agent for {summary['city_name']}. "
+            f"Hello! I'm the UrbanYantra RAG analytics agent for {summary['city_name']}. "
             "Ask about LST hotspots, SHAP drivers, ROI, or intervention scenarios."
         )
     return (

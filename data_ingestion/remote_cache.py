@@ -18,7 +18,7 @@ BENCHMARKS_DIR = ROOT / "data" / "benchmarks"
 
 
 def _cache_root(config: dict) -> Path:
-    raw = (config.get("remote_data") or {}).get("cache_dir") or os.environ.get("URBANCOOL_DATA_CACHE", "")
+    raw = (config.get("remote_data") or {}).get("cache_dir") or os.environ.get("URBANYANTRA_DATA_CACHE", "")
     path = Path(str(raw)).expanduser() if raw else DEFAULT_CACHE
     path.mkdir(parents=True, exist_ok=True)
     return path

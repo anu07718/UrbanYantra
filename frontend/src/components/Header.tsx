@@ -72,11 +72,11 @@ export default function Header({ summary, scenarioMetrics }: HeaderProps) {
         {/* Brand */}
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white overflow-hidden p-0.5">
-            <img src="/logo.png" alt="UrbanCool Logo" className="h-full w-full object-contain" />
+            <img src="/logo.png" alt="UrbanYantra Logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight text-white">UrbanCool</h1>
+              <h1 className="text-lg font-bold tracking-tight text-white">UrbanYantra</h1>
               <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cyan-300">ISRO-Grade</span>
               {isSimulated && (
                 <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-300 animate-pulse">

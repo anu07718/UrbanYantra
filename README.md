@@ -1,4 +1,4 @@
-# Optimizing Urban Heat Mitigation via AI/ML (UrbanCool)
+# Optimizing Urban Heat Mitigation via AI/ML (UrbanYantra)
 
 End-to-end ISRO hackathon prototype: **hotspot detection**, **SHAP driver attribution**, **GHSL/ERA5 real-data layers**, **live XGBoost inference**, and **cooling scenario simulation** with ranked interventions.
 
@@ -158,9 +158,9 @@ startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
 
 | Variable | Value |
 |----------|-------|
-| `CORS_ALLOW_ORIGINS` | Your Vercel URL, e.g. `https://urbancool.vercel.app` |
+| `CORS_ALLOW_ORIGINS` | Your Vercel URL, e.g. `https://urbanyantra.vercel.app` |
 | `GEE_PROJECT` | `western-avatar-491910-s2` (only if re-running pipeline on Render) |
-| `URBANCOOL_DATA_CACHE` | `/opt/render/project/src/data/cache` |
+| `URBANYANTRA_DATA_CACHE` | `/opt/render/project/src/data/cache` |
 | `OPENROUTER_API_KEY` | Optional — AI chat |
 
 **Optional live Hugging Face sync on Render** (slow, needs disk + GEE):
@@ -177,7 +177,7 @@ Deploy the `frontend/` directory (or use root `vercel.json`).
 **Environment variable:**
 
 ```
-NEXT_PUBLIC_API_BASE=https://urbancool-api.onrender.com
+NEXT_PUBLIC_API_BASE=https://urbanyantra-api.onrender.com
 ```
 
 Copy from `frontend/.env.example`. Root `vercel.json` already defaults to the Render API URL.
@@ -185,9 +185,9 @@ Copy from `frontend/.env.example`. Root `vercel.json` already defaults to the Re
 ### Verify deployment
 
 ```powershell
-curl https://urbancool-api.onrender.com/cities
-curl https://urbancool-api.onrender.com/cities/Mumbai/summary
-curl https://urbancool-api.onrender.com/cities/Mumbai/interventions?limit=5
+curl https://urbanyantra-api.onrender.com/cities
+curl https://urbanyantra-api.onrender.com/cities/Mumbai/summary
+curl https://urbanyantra-api.onrender.com/cities/Mumbai/interventions?limit=5
 ```
 
 ---

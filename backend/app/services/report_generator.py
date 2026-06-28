@@ -1,5 +1,5 @@
 """
-UrbanCool PDF Report Generator
+UrbanYantra PDF Report Generator
 ===============================
 Generates comprehensive Urban Heat Mitigation reports using reportlab.
 """
@@ -71,7 +71,7 @@ def _footer(canvas, doc):
     canvas.drawString(
         inch,
         0.5 * inch,
-        "UrbanCool — Urban Heat Mitigation Platform",
+        "UrbanYantra — Urban Heat Mitigation Platform",
     )
     canvas.restoreState()
 
@@ -184,7 +184,7 @@ def _alternating_table_style(
 def _build_cover(elements: list, city_name: str, styles: dict):
     """Section 1: Cover page."""
     elements.append(Spacer(1, 2 * inch))
-    elements.append(Paragraph("URBANCOOL", styles["cover_title"]))
+    elements.append(Paragraph("URBANYANTRA", styles["cover_title"]))
     elements.append(
         Paragraph(
             "URBAN HEAT MITIGATION REPORT",
@@ -779,8 +779,8 @@ def generate_report(city_key: str) -> bytes:
         rightMargin=inch,
         topMargin=inch,
         bottomMargin=inch,
-        title="UrbanCool Urban Heat Mitigation Report",
-        author="UrbanCool Platform",
+        title="UrbanYantra Urban Heat Mitigation Report",
+        author="UrbanYantra Platform",
     )
 
     styles = _get_styles()

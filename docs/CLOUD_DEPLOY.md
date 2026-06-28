@@ -41,9 +41,9 @@ Tier 3 — Google Earth Engine (satellite LST, S2, WorldCover)
    - **Start:** `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
 3. Set env vars:
    - `CORS_ALLOW_ORIGINS` = your Vercel URL
-   - `URBANCOOL_DATA_CACHE` = `/opt/render/project/src/data/cache`
+   - `URBANYANTRA_DATA_CACHE` = `/opt/render/project/src/data/cache`
    - `GEE_PROJECT` (only if running pipeline on Render)
-4. Health check: `GET /` → `{"service":"UrbanCool API"}`
+4. Health check: `GET /` → `{"service":"UrbanYantra API"}`
 
 ---
 

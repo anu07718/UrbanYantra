@@ -53,7 +53,7 @@ export default function AIChat({ cityKey, cityName }: AIChatProps) {
     {
       id: "welcome",
       sender: "ai",
-      text: `Hello! I'm the UrbanCool AI Assistant for **${cityName}**.\n\nI can help with:\n• Heat hotspot analysis & LST data\n• SHAP driver explanations\n• Cooling intervention ROI\n• Urban planning recommendations\n• Generate PDF reports for stakeholders\n\nAsk me anything or try the quick prompts below!`,
+      text: `Hello! I'm the UrbanYantra AI Assistant for **${cityName}**.\n\nI can help with:\n• Heat hotspot analysis & LST data\n• SHAP driver explanations\n• Cooling intervention ROI\n• Urban planning recommendations\n• Generate PDF reports for stakeholders\n\nAsk me anything or try the quick prompts below!`,
     },
   ]);
 
@@ -70,7 +70,7 @@ export default function AIChat({ cityKey, cityName }: AIChatProps) {
       {
         id: "welcome",
         sender: "ai",
-        text: `Hello! I'm the UrbanCool AI Assistant for **${cityName}**.\n\nI can help with:\n• Heat hotspot analysis & LST data\n• SHAP driver explanations\n• Cooling intervention ROI\n• Urban planning recommendations\n• Generate PDF reports for stakeholders\n\nAsk me anything or try the quick prompts below!`,
+        text: `Hello! I'm the UrbanYantra AI Assistant for **${cityName}**.\n\nI can help with:\n• Heat hotspot analysis & LST data\n• SHAP driver explanations\n• Cooling intervention ROI\n• Urban planning recommendations\n• Generate PDF reports for stakeholders\n\nAsk me anything or try the quick prompts below!`,
       },
     ]);
   }, [cityKey, cityName]);
@@ -173,7 +173,7 @@ export default function AIChat({ cityKey, cityName }: AIChatProps) {
         <div className="flex items-center gap-2">
           <Bot size={18} className="text-violet-400" />
           <div>
-            <p className="text-sm font-semibold text-white">UrbanCool AI</p>
+            <p className="text-sm font-semibold text-white">UrbanYantra AI</p>
             <p className="text-[10px] text-slate-400">LLM-Powered Analytics Agent</p>
           </div>
         </div>

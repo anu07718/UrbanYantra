@@ -21,7 +21,7 @@ from backend.app.services.llm_chat import llm_chat_response
 from backend.app.services.report_generator import generate_report
 
 app = FastAPI(
-    title="UrbanCool API",
+    title="UrbanYantra API",
     description="Urban Heat Mitigation — physics-informed AI intelligence platform",
     version="1.0.0",
 )
@@ -67,7 +67,7 @@ class PredictRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"service": "UrbanCool API", "docs": "/docs"}
+    return {"service": "UrbanYantra API", "docs": "/docs"}
 
 
 @app.get("/cities")
@@ -266,7 +266,7 @@ def city_report(city_key: str):
     """Generate and return a comprehensive PDF report for the city."""
     try:
         pdf_bytes = generate_report(city_key)
-        filename = f"UrbanCool_{city_key}_report.pdf"
+        filename = f"UrbanYantra_{city_key}_report.pdf"
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",

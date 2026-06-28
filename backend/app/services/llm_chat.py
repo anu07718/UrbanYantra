@@ -1,5 +1,5 @@
 """
-LLM-powered chat service for UrbanCool.
+LLM-powered chat service for UrbanYantra.
 
 Uses the OpenRouter API (google/gemini-2.0-flash-001) to provide
 context-aware, analytical responses about urban heat islands.
@@ -109,7 +109,7 @@ def _build_system_prompt(city_key: str) -> str:
     city_context = _build_city_context(city_key)
 
     return (
-        "You are **UrbanCool AI**, an expert urban heat island (UHI) analyst "
+        "You are **UrbanYantra AI**, an expert urban heat island (UHI) analyst "
         "and climate adaptation advisor. You have deep knowledge of remote "
         "sensing, land-surface temperature modelling, urban planning, and "
         "nature-based cooling interventions.\n\n"
@@ -190,7 +190,7 @@ def llm_chat_response(
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost:3000",
-            "X-Title": "UrbanCool",
+            "X-Title": "UrbanYantra",
         }
 
         payload = {

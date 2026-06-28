@@ -1,7 +1,7 @@
 // API base URL
-// - Local dev: localhost:8000
-// - Vercel prod: NEXT_PUBLIC_API_BASE (or default HF Space URL below)
-const PRODUCTION_API_BASE = "https://karthikj30-urbanyantra-api.hf.space";
+// - Local dev: localhost:8000 (or /api rewrite if NEXT_PUBLIC_API_BASE=/api)
+// - Vercel prod: /api → next.config rewrites → HF Space (same-origin, no CORS)
+const PRODUCTION_API_BASE = "/api";
 
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_BASE || process.env.BACKEND_URL;

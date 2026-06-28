@@ -1,7 +1,7 @@
 // API base URL
 // - Local dev: localhost:8000
-// - Vercel prod: NEXT_PUBLIC_API_BASE (or default Render URL below)
-const PRODUCTION_API_BASE = "https://urbanyantra-api.onrender.com";
+// - Vercel prod: NEXT_PUBLIC_API_BASE (or default HF Space URL below)
+const PRODUCTION_API_BASE = "https://karthikj30-urbanyantra-api.hf.space";
 
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_BASE || process.env.BACKEND_URL;

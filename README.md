@@ -133,62 +133,65 @@ Right panel: **Ranked Interventions** (top zones per strategy from real LST/NDVI
 
 ---
 
-## Deploy to Render + Vercel (production)
+## Deploy to Hugging Face + Vercel (recommended — free tier, all 10 cities)
 
-Architecture: **Vercel = frontend only** · **Render = FastAPI + precomputed `outputs/`**
+Architecture: **HF Datasets = outputs storage** · **HF Space = FastAPI API** · **Vercel = Next.js frontend**
 
-### Recommended strategy (hackathon / free tier)
+Raw 17 GB GHSL/ERA5 stays on [UrbanDatasets](https://huggingface.co/datasets/sleepingbeauty11/UrbanDatasets).  
+Precomputed `outputs/` uploads to your HF Dataset; the Space syncs them at startup (no Render 500 MB limit).
 
-1. Run pipeline locally for all demo cities (downloads from Hugging Face automatically)
-2. Commit `outputs/{city}/` artifacts including GHSL rasters (see `.gitignore` deploy bundle)
-3. Push to GitHub — Render serves API from committed outputs
-
-Bundled in Git by default (see `.gitignore` exceptions): `feature_table.parquet`, GHSL rasters, models, rankings, geojson, summary, benchmarks.
-
-### Render (backend)
-
-Uses `render.yaml` at repo root:
-
-```yaml
-buildCommand: pip install -r requirements-deploy.txt
-startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
-```
-
-**Environment variables (Render dashboard):**
-
-| Variable | Value |
-|----------|-------|
-| `CORS_ALLOW_ORIGINS` | Your Vercel URL, e.g. `https://urbanyantra.vercel.app` |
-| `GEE_PROJECT` | `western-avatar-491910-s2` (only if re-running pipeline on Render) |
-| `URBANYANTRA_DATA_CACHE` | `/opt/render/project/src/data/cache` |
-| `OPENROUTER_API_KEY` | Optional — AI chat |
-
-**Optional live Hugging Face sync on Render** (slow, needs disk + GEE):
+### One-command deploy helper
 
 ```powershell
-pip install huggingface_hub
-py run_pipeline.py --city Mumbai --data-mode local --force
+hf auth login
+.\scripts\deploy_all.ps1
 ```
 
-### Vercel (frontend)
+### Manual steps
 
-Deploy the `frontend/` directory (or use root `vercel.json`).
-
-**Environment variable:**
-
-```
-NEXT_PUBLIC_API_BASE=https://urbanyantra-api.onrender.com
-```
-
-Copy from `frontend/.env.example`. Root `vercel.json` already defaults to the Render API URL.
-
-### Verify deployment
+**1. Precompute locally (if needed)**
 
 ```powershell
-curl https://urbanyantra-api.onrender.com/cities
-curl https://urbanyantra-api.onrender.com/cities/Mumbai/summary
-curl https://urbanyantra-api.onrender.com/cities/Mumbai/interventions?limit=5
+py run_pipeline.py --multi-city --data-mode local --force
 ```
+
+**2. Upload outputs to Hugging Face**
+
+```powershell
+py scripts/upload_outputs_to_hf.py
+```
+
+Repo ID is in `configs/deploy.yaml` (default: `karthikj30/UrbanYantra-outputs`). Create a **public** dataset at [huggingface.co/new-dataset](https://huggingface.co/new-dataset) first.
+
+**3. Create HF Space (Docker backend)**
+
+- [huggingface.co/new-space](https://huggingface.co/new-space) → SDK: **Docker** → connect `karthikj30/UrbanYantra` GitHub repo
+- Uses root `Dockerfile` + `entrypoint.sh`
+- Space secrets: `HF_OUTPUTS_REPO`, `CORS_ALLOW_ORIGINS` (your Vercel URL), optional `OPENROUTER_API_KEY`
+- API URL: `https://karthikj30-urbanyantra-api.hf.space`
+
+**4. Deploy frontend on Vercel**
+
+```powershell
+# Env var in Vercel dashboard:
+NEXT_PUBLIC_API_BASE=https://karthikj30-urbanyantra-api.hf.space
+```
+
+Root `vercel.json` and `frontend/.env.example` already default to the HF Space URL.
+
+### Verify
+
+```powershell
+curl https://karthikj30-urbanyantra-api.hf.space/
+curl https://karthikj30-urbanyantra-api.hf.space/cities
+curl https://karthikj30-urbanyantra-api.hf.space/cities/Mumbai/summary
+```
+
+See also: `hf_render_deployment_guide.md`, `hf_space/README.md`, `docs/CLOUD_DEPLOY.md`.
+
+### Fallback: Render backend
+
+`render.yaml` remains available if you prefer Render over HF Space for the API.
 
 ---
 

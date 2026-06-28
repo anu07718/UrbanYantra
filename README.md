@@ -1,3 +1,14 @@
+---
+title: UrbanYantra API
+emoji: 🌡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # Optimizing Urban Heat Mitigation via AI/ML (UrbanYantra)
 
 End-to-end ISRO hackathon prototype: **hotspot detection**, **SHAP driver attribution**, **GHSL/ERA5 real-data layers**, **live XGBoost inference**, and **cooling scenario simulation** with ranked interventions.

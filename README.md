@@ -243,7 +243,9 @@ cd frontend && npx tsc --noEmit
 ---
 
 ## References
-
+- [Hugging Face Datasets](https://huggingface.co/datasets/sleepingbeauty11/UrbanDatasets/tree/main)
+- [Hugging Face Datasets Output](https://huggingface.co/datasets/sleepingbeauty11/UrbanYantra-outputs/tree/main)
+- [Hugging Face space](https://huggingface.co/spaces/sleepingbeauty11/urbanyantra-api?logs=container)
 - [UHI-Analysis](https://github.com/ArhamOrioner/UHI-Analysis) — GEE + ML hotspot pipeline
 - [WRI UrbanHeatMitigation](https://github.com/wri/UrbanHeatMitigation)
 - [InVEST UCM calibration](https://github.com/martibosch/invest-ucm-calibration)

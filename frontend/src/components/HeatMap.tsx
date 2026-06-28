@@ -281,7 +281,11 @@ const LAYER_CONFIG: Record<MapLayer, {
     heightNote: "Height ∝ urban settlement degree",
     unit: "",
     ramp: LAYER_RAMPS.ghsl_smod,
-    getValue: (p) => (p.ghsl_smod != null ? Math.min(1, p.ghsl_smod / 30) : 0),
+    getValue: (p) => {
+      if (p.ghsl_smod != null && p.ghsl_smod > 0) return Math.min(1, p.ghsl_smod / 30);
+      if (p.lcz_class != null) return Math.min(1, p.lcz_class / 10);
+      return p.building_density ?? p.impervious_frac ?? 0;
+    },
     formatValue: (v) => (v >= 0.66 ? "Urban core" : v >= 0.33 ? "Suburban" : "Rural/open"),
     tooltipLabel: "SMOD",
     defaultBounds: [0, 1],

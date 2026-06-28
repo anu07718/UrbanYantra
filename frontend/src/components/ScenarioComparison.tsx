@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, ArrowRight, ShieldCheck, HelpCircle, X } from "lucide-react";
 import type { ScenarioComparisonResult, ScenarioComparisonEntry } from "@/types";
 
@@ -302,15 +303,23 @@ export default function ScenarioComparison({
         )}
       </div>
 
-      {/* AI Action Plan Modal */}
-      {isPlanModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl rounded-xl border border-emerald-700/50 bg-[#0d1322] shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 bg-[#111827] px-5 py-4 rounded-t-xl">
+      {/* AI Action Plan — portal dialog (escapes scrollable main panel) */}
+      {isPlanModalOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="action-plan-title"
+          onClick={() => setIsPlanModalOpen(false)}
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-emerald-700/50 bg-[#0d1322] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 bg-[#111827] px-5 py-4 rounded-t-xl shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🤖</span>
-                <h2 className="text-lg font-bold text-emerald-300">AI Urban Cooling Plan Strategies</h2>
+                <h2 id="action-plan-title" className="text-lg font-bold text-emerald-300">AI Urban Cooling Plan Strategies</h2>
               </div>
               <button
                 onClick={() => setIsPlanModalOpen(false)}
@@ -321,7 +330,7 @@ export default function ScenarioComparison({
             </div>
 
             {/* Modal Body */}
-            <div className="max-h-[70vh] overflow-y-auto p-5 space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 min-h-0">
               {scenarios
                 .filter((s) => !s.name.includes("Combined") && !s.name.includes("Current") && !s.name.includes("Baseline"))
                 .sort((a, b) => b.temp_reduction_c - a.temp_reduction_c)
@@ -662,7 +671,7 @@ export default function ScenarioComparison({
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-slate-800 bg-[#111827] px-5 py-4 rounded-b-xl flex justify-end">
+            <div className="border-t border-slate-800 bg-[#111827] px-5 py-4 rounded-b-xl flex justify-end shrink-0">
               <button
                 onClick={() => setIsPlanModalOpen(false)}
                 className="rounded-lg bg-slate-700 px-6 py-2 text-sm font-bold text-white transition-colors hover:bg-slate-600"
@@ -671,7 +680,8 @@ export default function ScenarioComparison({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

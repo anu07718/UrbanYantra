@@ -47,6 +47,7 @@ export interface WardProperties {
   population?: number;
   ghsl_built?: number;
   ghsl_smod?: number;
+  lcz_class?: number;
   lst_calibrated_c?: number;
   boundary_source?: string;
   hotspot_class?: number;

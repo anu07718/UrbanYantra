@@ -14,6 +14,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=7860
 
+# Default outputs dataset (override via Space secret HF_OUTPUTS_REPO if needed)
+ENV HF_OUTPUTS_REPO=sleepingbeauty11/UrbanYantra-outputs
+
 COPY requirements-deploy.txt .
 RUN pip install --no-cache-dir -r requirements-deploy.txt
 
@@ -26,10 +29,9 @@ COPY data/benchmarks/ data/benchmarks/
 COPY scripts/sync_outputs_from_hf.py scripts/sync_outputs_from_hf.py
 COPY scripts/upload_outputs_to_hf.py scripts/upload_outputs_to_hf.py
 COPY utils.py utils.py
-COPY entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh \
-    && python -c "from backend.app.main import app; print('import ok')"
+RUN python -c "from backend.app.main import app; print('import ok')"
 
 EXPOSE 7860
-ENTRYPOINT ["/entrypoint.sh"]
+# Use sh -c (not entrypoint.sh) — avoids Windows CRLF breaking bash shebang on Linux
+CMD ["sh", "-c", "python /app/scripts/sync_outputs_from_hf.py && exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

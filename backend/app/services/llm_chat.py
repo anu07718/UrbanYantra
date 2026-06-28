@@ -6,15 +6,22 @@ context-aware, analytical responses about urban heat islands.
 Falls back to the rule-based chat_response when the API is unavailable.
 """
 
+import logging
 import os
 import requests
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
-# Configuration
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "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")
+# Configuration — set OPENROUTER_API_KEY on HF Space / Render (never commit keys)
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-2.5-flash"
+APP_REFERER = os.environ.get(
+    "APP_PUBLIC_URL",
+    os.environ.get("CORS_ALLOW_ORIGINS", "https://urban-yantra.vercel.app").split(",")[0].strip(),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +180,6 @@ def llm_chat_response(
         return rule_based_chat(message, city_key)
 
     try:
-        # ---- Build messages list --------------------------------------
         messages: list[dict[str, str]] = [
             {"role": "system", "content": _build_system_prompt(city_key)},
         ]
@@ -189,7 +195,7 @@ def llm_chat_response(
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:3000",
+            "HTTP-Referer": APP_REFERER,
             "X-Title": "UrbanYantra",
         }
 
@@ -211,6 +217,6 @@ def llm_chat_response(
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
-    except Exception:
-        # Any failure (network, auth, rate-limit, parsing) → fallback
+    except Exception as exc:
+        logger.warning("OpenRouter LLM failed, using rule-based fallback: %s", exc)
         return rule_based_chat(message, city_key)

@@ -19,9 +19,10 @@ Backend for the Urban Heat Mitigation dashboard. Serves precomputed city outputs
 
 | Key | Value |
 |-----|-------|
-| `HF_OUTPUTS_REPO` | `karthikj30/UrbanYantra-outputs` |
-| `CORS_ALLOW_ORIGINS` | Your Vercel URL |
-| `OPENROUTER_API_KEY` | Optional — AI chat |
+| `HF_OUTPUTS_REPO` | `sleepingbeauty11/UrbanYantra-outputs` |
+| `CORS_ALLOW_ORIGINS` | `https://urban-yantra.vercel.app` |
+| `OPENROUTER_API_KEY` | Your OpenRouter key (for AI chat) |
+| `APP_PUBLIC_URL` | `https://urban-yantra.vercel.app` |
 
 ## Health check
 

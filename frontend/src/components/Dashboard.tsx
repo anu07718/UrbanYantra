@@ -216,7 +216,11 @@ export default function Dashboard() {
         const withData = list.find((c) => c.has_data);
         if (withData) setCityKey(withData.city_key);
       })
-      .catch(() => setError("API offline — run: uvicorn backend.app.main:app --reload --port 8000"));
+      .catch(() =>
+        setError(
+          `API offline — could not reach backend. If deployed, redeploy Vercel after latest push.`
+        )
+      );
   }, []);
 
   useEffect(() => {

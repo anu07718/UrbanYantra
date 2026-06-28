@@ -183,6 +183,8 @@ def _layer_array(city_key: str, layer: str, df: pd.DataFrame) -> np.ndarray:
         except FileNotFoundError:
             if "lcz_class" in df.columns:
                 return np.clip(_grid_from_column(df, "lcz_class") / 10.0, 0, 1)
+            if "building_density" in df.columns:
+                return _grid_from_column(df, "building_density")
             raise
 
     try:
@@ -253,17 +255,25 @@ def get_heatmap_meta(city_key: str, layer: str = "lst") -> dict[str, Any]:
         meta["source"] = "GHSL SMOD (Hugging Face cache)"
 
     raster_dir = _city_out_dir(city_key) / "rasters"
-    if layer == "ghsl_built" and not (raster_dir / "ghsl_built_surface.tif").exists():
+    has_ghsl_built = (raster_dir / "ghsl_built_surface.tif").exists() or "building_density" in df.columns
+    has_ghsl_smod = (raster_dir / "ghsl_smod.tif").exists() or "lcz_class" in df.columns
+    has_ghsl_pop = (raster_dir / "ghsl_population.tif").exists() or "population" in df.columns
+
+    if layer == "ghsl_built" and not has_ghsl_built:
         meta["data_available"] = False
         meta["error"] = "Error fetching data: GHSL Built-S raster not found. Re-run pipeline with --data-mode local --force"
-    elif layer == "ghsl_smod" and not (raster_dir / "ghsl_smod.tif").exists():
+    elif layer == "ghsl_smod" and not has_ghsl_smod:
         meta["data_available"] = False
         meta["error"] = "Error fetching data: GHSL SMOD raster not found. Re-run pipeline with --data-mode local --force"
-    elif layer == "ghsl_population" and not (raster_dir / "ghsl_population.tif").exists():
+    elif layer == "ghsl_population" and not has_ghsl_pop:
         meta["data_available"] = False
         meta["error"] = "Error fetching data: GHSL population raster not found. Re-run pipeline with --data-mode local --force"
     else:
         meta["data_available"] = True
+        if layer == "ghsl_built" and not (raster_dir / "ghsl_built_surface.tif").exists():
+            meta["source"] = "GHSL Built-S (feature-table proxy from building density)"
+        if layer == "ghsl_smod" and not (raster_dir / "ghsl_smod.tif").exists():
+            meta["source"] = "GHSL SMOD (feature-table proxy from LCZ class)"
     return meta
 
 
@@ -329,10 +339,16 @@ def build_fine_grid_geojson(
         built_norm = _normalize_built_surface(built_raw)
         df = df.copy()
         df["ghsl_built"] = built_norm[df["row"].to_numpy(), df["col"].to_numpy()]
+    elif "building_density" in df.columns:
+        df = df.copy()
+        df["ghsl_built"] = df["building_density"].astype(np.float32)
     if ghsl_smod_path.exists():
         smod_raw = _read_raster(ghsl_smod_path)
         df = df.copy()
         df["ghsl_smod"] = smod_raw[df["row"].to_numpy(), df["col"].to_numpy()]
+    elif "lcz_class" in df.columns:
+        df = df.copy()
+        df["ghsl_smod"] = df["lcz_class"].astype(np.float32)
     if mask_water:
         df = visible_pixels(df)
     h = int(df["row"].max()) + 1 if len(df) else 0
@@ -453,8 +469,17 @@ def build_fine_grid_geojson(
                     "impervious_frac": round(np.nan_to_num(avg_imp, nan=0.5), 3),
                     "building_density": round(np.nan_to_num(avg_bld, nan=avg_imp), 3),
                     "population": round(np.nan_to_num(avg_pop, nan=0.0), 1),
-                    "ghsl_built": round(np.nan_to_num(avg_ghsl_built, nan=0.0), 2),
-                    "ghsl_smod": round(np.nan_to_num(avg_ghsl_smod, nan=0.0), 1),
+                    "ghsl_built": round(
+                        np.nan_to_num(
+                            avg_ghsl_built if np.isfinite(avg_ghsl_built) else avg_bld,
+                            nan=np.nan_to_num(avg_imp, nan=0.0),
+                        ),
+                        2,
+                    ),
+                    "ghsl_smod": round(
+                        np.nan_to_num(avg_ghsl_smod, nan=0.0),
+                        1,
+                    ),
                     "vulnerability_class": vuln,
                     "hotspot_fraction": round(np.nan_to_num(hotspot_frac, nan=0.0), 3),
                     "hotspot_class": int(getattr(block, "hotspot_class", 0)),

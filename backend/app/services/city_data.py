@@ -176,22 +176,62 @@ def _verify_artifacts(city_key: str, provenance: dict[str, Any]) -> dict[str, bo
     """Check artifact flags against files on disk (summary.json can be stale)."""
     out = _city_out_dir(city_key)
     stored = provenance.get("artifacts_present", {})
+
+    def _exists(path: Path) -> bool:
+        return path.exists()
+
+    def _any_exist(*paths: Path) -> bool:
+        return any(p.exists() for p in paths)
+
+    # Pre-baked feature table proves GHSL/ERA5 were ingested even when raw rasters
+    # are omitted from the HF deploy bundle (saves GB of disk).
+    ft_flags: dict[str, bool] = {}
+    ft_path = out / "tables" / "feature_table.parquet"
+    if ft_path.exists():
+        try:
+            import pyarrow.parquet as pq
+
+            cols = set(pq.ParquetFile(ft_path).schema.names)
+            ft_flags["ghsl"] = bool(
+                {"building_density", "building_height", "population"} & cols
+            )
+            ft_flags["era5_meteo"] = bool(
+                {"humidity_proxy", "temp_2m_c", "dewpoint_c", "wind_ms"} & cols
+            )
+        except Exception:
+            pass
+
     checks = {
-        "landsat_lst": out / "rasters" / "landsat_lst_c.tif",
-        "sentinel2_ndvi": out / "rasters" / "ndvi.tif",
-        "worldcover": out / "rasters" / "worldcover.tif",
-        "ghsl": out / "rasters" / "ghsl_building_height.tif",
-        "era5_meteo": out / "tables" / "era5_land_hourly.parquet",
-        "osm_morphology": out / "tables" / "osm_morphology.parquet",
-        "osm_buildings": out / "vectors" / "osm_buildings.gpkg",
-        "station_calibration": out / "calibration" / "station_calibration.json",
-        "ward_boundaries": out / "geojson" / "ward_zonal.geojson",
-        "feature_table": out / "tables" / "feature_table.parquet",
-        "lst_10m": out / "rasters" / "lst_10m.tif",
+        "landsat_lst": _any_exist(
+            out / "rasters" / "landsat_lst_c.tif",
+            out / "rasters" / "lst_10m.tif",
+        ),
+        "sentinel2_ndvi": _exists(out / "rasters" / "ndvi.tif"),
+        "worldcover": _exists(out / "rasters" / "worldcover.tif"),
+        "ghsl": _any_exist(
+            out / "rasters" / "ghsl_building_height.tif",
+            out / "rasters" / "ghsl_built_surface.tif",
+            out / "rasters" / "ghsl_smod.tif",
+            out / "rasters" / "ghsl_population.tif",
+        ),
+        "era5_meteo": _exists(out / "tables" / "era5_land_hourly.parquet"),
+        "osm_morphology": _exists(out / "tables" / "osm_morphology.parquet"),
+        "osm_buildings": _exists(out / "vectors" / "osm_buildings.gpkg"),
+        "station_calibration": _exists(out / "calibration" / "station_calibration.json"),
+        "ward_boundaries": _exists(out / "geojson" / "ward_zonal.geojson"),
+        "feature_table": _exists(out / "tables" / "feature_table.parquet"),
+        "lst_10m": _exists(out / "rasters" / "lst_10m.tif"),
     }
+    for key, from_ft in ft_flags.items():
+        if from_ft:
+            checks[key] = True
+
     verified: dict[str, bool] = {}
-    for key, path in checks.items():
-        verified[key] = path.exists() if key not in stored else bool(stored.get(key)) and path.exists()
+    for key, present in checks.items():
+        if key in stored and not stored.get(key):
+            verified[key] = False
+        else:
+            verified[key] = bool(present)
     return verified
 
 
@@ -940,27 +980,103 @@ def run_scenario_comparison(
 
 
 def chat_response(message: str, city_key: str) -> str:
+    """Rule-based fallback when OpenRouter LLM is unavailable."""
     summary = get_city_summary(city_key)
+    city = summary["city_name"]
+    metrics = summary["metrics"]
     drivers = get_drivers(city_key)
-    top_driver = drivers["drivers"][0]["feature"] if drivers["drivers"] else "vegetation deficit"
+    top_driver = drivers["drivers"][0] if drivers.get("drivers") else {}
+    driver_name = _driver_label(top_driver.get("feature", "vegetation deficit"))
     msg = message.lower()
-    if "lst" in msg or "temperature" in msg:
-        return (
-            f"Average LST in {summary['city_name']} is {summary['metrics']['avg_city_lst_c']}°C. "
-            f"Primary driver: {top_driver}. Use the Cooling Simulator to estimate intervention impact."
+
+    if any(w in msg for w in ["hotspot", "hottest", "highest lst", "which zones", "where is"]):
+        hs = get_hotspots(city_key)
+        feats = sorted(
+            hs.get("features", []),
+            key=lambda f: float(f.get("properties", {}).get("lst_c", 0)),
+            reverse=True,
+        )[:5]
+        if not feats:
+            return f"No severe hotspots detected in {city}. Average LST is {metrics['avg_city_lst_c']}°C."
+        lines = [
+            f"**Top heat hotspots in {city}** (by Land Surface Temperature):\n",
+            f"City average LST: **{metrics['avg_city_lst_c']}°C** · Primary SHAP driver: **{driver_name}**\n",
+        ]
+        for i, f in enumerate(feats, 1):
+            p = f.get("properties", {})
+            lines.append(
+                f"{i}. **{p.get('hotspot_label', 'Hotspot')}** — "
+                f"LST **{p.get('lst_c', 0):.1f}°C**, NDVI {p.get('ndvi', 0):.2f} "
+                f"(Gi* z={p.get('gi_star_z', 0):.1f})"
+            )
+        lines.append(
+            "\nSevere clusters correlate with low NDVI / high impervious cover. "
+            "Use **GHSL Built-up** and **Risk Level** map layers to cross-check."
         )
+        return "\n".join(lines)
+
+    if any(w in msg for w in ["intervention", "cooling", "top 3", "ranked", "recommend"]):
+        ranking = get_ranking(city_key, limit=3)
+        cooling = get_cooling_potential(city_key)
+        if not ranking and not cooling:
+            return f"No intervention rankings for {city} yet. Run the pipeline with --force."
+        lines = [f"**Top cooling interventions for {city}:**\n"]
+        for i, row in enumerate(ranking[:3], 1):
+            strat = row.get("intervention_type") or row.get("strategy") or "Intervention"
+            dt = float(row.get("estimated_temp_reduction_c") or row.get("delta_t_c") or 0)
+            cost = row.get("estimated_cost_m_usd") or row.get("cost_m_usd")
+            cost_txt = f"${float(cost):.2f}M" if cost is not None else "see simulator"
+            lines.append(
+                f"**#{i} {strat}** — ↓ **{dt:.2f}°C** · Est. cost **{cost_txt}** · "
+                f"Timeline: {'6–12 mo' if 'roof' in str(strat).lower() else '2–3 yr' if 'green' in str(strat).lower() else '1–2 yr'}"
+            )
+        if cooling:
+            lines.append("\n**Strategy potential (city-wide mean ΔT):**")
+            for c in cooling[:3]:
+                lines.append(f"• {c['strategy']}: **{c['delta_t_c']}°C**")
+        lines.append("\nOpen **AI Scenario Comparison** after simulating for full cost/carbon breakdown.")
+        return "\n".join(lines)
+
+    if any(w in msg for w in ["climate", "projection", "2050", "future"]):
+        proj = get_climate_projection(city_key)
+        if not proj:
+            return f"Climate projection unavailable for {city}."
+        p0, p_end = proj[0], proj[-1]
+        return (
+            f"**Climate trend for {city}** (pipeline baseline extrapolation):\n"
+            f"• {p0['year']}: **{p0['lst_c']}°C** → {p_end['year']}: **{p_end['lst_c']}°C**\n"
+            f"• Current UTCI proxy: **{metrics['avg_heat_stress_utci_c']}°C**\n"
+            f"• Resilience index: **{metrics['resilience_index']}/100**\n\n"
+            "Combine urban greening + cool roofs in the Cooling Simulator to offset this trend."
+        )
+
+    if any(w in msg for w in ["plan", "planning", "administrator", "policy"]):
+        ranking = get_ranking(city_key, limit=3)
+        zones = ", ".join(
+            r.get("zone_name", r.get("ward", "priority zone")) for r in ranking[:3] if isinstance(r, dict)
+        ) or "high-LST wards on the map"
+        return (
+            f"**Planning recommendations for {city}:**\n"
+            f"1. Target **{zones}** for phased blue-green infrastructure.\n"
+            f"2. Prioritize **{driver_name}** — top SHAP driver of UHI here.\n"
+            f"3. City avg LST **{metrics['avg_city_lst_c']}°C** — deploy cool roofs on public buildings first (6–12 mo).\n"
+            f"4. Expand tree canopy in NDVI < 0.2 cells (see Green Coverage layer).\n"
+            f"5. Download the PDF report for ward-level evidence."
+        )
+
     if "roi" in msg or "invest" in msg or "cost" in msg:
         return (
             "Ranked interventions are in the right panel. Cool roofs offer lower complexity; "
-            "urban greening yields higher ΔT but higher cost per sqm (placeholder municipal costs)."
+            "urban greening yields higher ΔT but higher cost per sqm."
         )
     if "hi" in msg or "hello" in msg:
         return (
-            f"Hello! I'm the UrbanYantra RAG analytics agent for {summary['city_name']}. "
-            "Ask about LST hotspots, SHAP drivers, ROI, or intervention scenarios."
+            f"Hello! I'm the UrbanYantra analytics agent for **{city}**. "
+            "Ask about LST hotspots, SHAP drivers, interventions, or climate projections."
         )
     return (
-        f"For {summary['city_name']}: resilience index {summary['metrics']['resilience_index']}/100, "
-        f"UTCI proxy {summary['metrics']['avg_heat_stress_utci_c']}°C. "
-        "Adjust sliders and run the physics-informed solver for scenario ΔT."
+        f"**{city} snapshot:** LST **{metrics['avg_city_lst_c']}°C**, "
+        f"UTCI **{metrics['avg_heat_stress_utci_c']}°C**, "
+        f"resilience **{metrics['resilience_index']}/100**. "
+        f"Top driver: **{driver_name}**. Try the quick prompts or Cooling Simulator."
     )
